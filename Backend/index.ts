@@ -110,6 +110,15 @@ app.post('/registrations', async (req: Request, res: Response): Promise<void> =>
   try {
     const payload = req.body || {};
 
+    if (!payload.email || !payload.password) {
+      res.status(400).json({ error: 'email and password are required' });
+      return;
+    }
+    if (await emailExists(payload.email)) {
+      res.status(409).json({ error: 'A registration with this email already exists' });
+      return;
+    }
+
     // Run the rule engine first (it doesn't need the stored row).
     const evaluation = await evaluate(payload);
 
@@ -135,6 +144,15 @@ app.post('/registrations', async (req: Request, res: Response): Promise<void> =>
 app.post('/registrations/full', async (req: Request, res: Response): Promise<void> => {
   try {
     const payload = req.body || {};
+
+    if (!payload.email || !payload.password) {
+      res.status(400).json({ error: 'email and password are required' });
+      return;
+    }
+    if (await emailExists(payload.email)) {
+      res.status(409).json({ error: 'A registration with this email already exists' });
+      return;
+    }
 
     const evaluation = await evaluate(payload);
     const row = await insertRegistration(payload, evaluation);
@@ -362,6 +380,16 @@ app.get('/users/:userId/evaluation', async (req: Request, res: Response): Promis
 // columns. Serialize JSON values explicitly so objects AND arrays round-trip.
 function jsonbParam(v: unknown): string | null {
   return v === undefined || v === null ? null : JSON.stringify(v);
+}
+
+// Whether a registration already exists for this email (case-insensitive).
+// Used to reject duplicate sign-ups, since email is the login identity.
+async function emailExists(email: string): Promise<boolean> {
+  const r = await pool.query(
+    'SELECT 1 FROM registrations WHERE lower(email) = lower($1) LIMIT 1',
+    [email]
+  );
+  return (r.rowCount ?? 0) > 0;
 }
 
 // Persist a questionnaire submission + its engine evaluation. Returns the new
