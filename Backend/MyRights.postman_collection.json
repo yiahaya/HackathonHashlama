@@ -1,0 +1,98 @@
+{
+  "info": {
+    "name": "MyRights Engine API (HackathonHashlama)",
+    "description": "Rule-based eligibility engine endpoints exposed by Backend/index.ts.\n\nFlow: a questionnaire submission (developer 1's form JSON) is evaluated by the engine and ranked rights are returned.\n\n- POST /evaluate          - stateless: questionnaire JSON -> ranked rights (no storage)\n- POST /registrations     - store the submission AND its evaluation, returns { id, evaluation }\n- GET  /registrations/:id - fetch a stored registration + its results\n- GET  /                  - health check\n\nSet the `baseUrl` collection variable (default http://localhost:3000). The 'Create registration' request saves the returned id into `registrationId`, used by 'Get registration by id'.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
+    { "key": "registrationId", "value": "", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
+      },
+      "response": []
+    },
+    {
+      "name": "Evaluate (stateless)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('has ranked rights', () => pm.expect(body.rights).to.be.an('array'));",
+              "pm.test('has profile + meta', () => {",
+              "  pm.expect(body.profile).to.be.an('object');",
+              "  pm.expect(body.meta).to.have.property('missing_inputs');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"a@b.com\",\n  \"amputeeDetails\": {\n    \"birthDate\": \"1985-06-20\",\n    \"gender\": \"זכר\",\n    \"maritalStatus\": \"נשוי\",\n    \"hasChildren\": true,\n    \"numberOfChildren\": 2,\n    \"address\": { \"city\": \"תל אביב\", \"country\": \"ישראל\" }\n  },\n  \"amputationDescription\": {\n    \"amputationReason\": \"תאונת עבודה\",\n    \"insuringBody\": \"ביטוח לאומי\",\n    \"amputationTypes\": [\"קטיעת רגל\"],\n    \"amputatedLegs\": [\"ימין\"],\n    \"rightLegAmputationLevel\": \"מעל הברך\",\n    \"usesProsthesis\": \"כן\",\n    \"otherAssistiveDevices\": \"קביים\"\n  },\n  \"generalQuestions\": {\n    \"currentlyWorkingFullTime\": \"כן\",\n    \"receivingDisabilityAllowance\": \"לא\"\n  },\n  \"metadata\": { \"formId\": \"F-123\", \"submittedAt\": \"2026-06-22T10:00:00Z\" }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/evaluate", "host": ["{{baseUrl}}"], "path": ["evaluate"] },
+        "description": "Stateless evaluation. Body is developer 1's questionnaire-result JSON. Returns { profile, rights[], meta }.\n\nOptional: add a top-level \"overrides\" object to supply attributes the form doesn't capture, e.g.\n  \"overrides\": { \"medical_disability_percentage\": 60, \"income_monthly\": 4500 }\nThese clear themselves from meta.missing_inputs."
+      },
+      "response": []
+    },
+    {
+      "name": "Create registration (store + evaluate)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "if (body.id) {",
+              "  pm.collectionVariables.set('registrationId', body.id);",
+              "  console.log('Saved registrationId =', body.id);",
+              "}",
+              "pm.test('returns evaluation', () => pm.expect(body.evaluation).to.have.property('rights'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"a@b.com\",\n  \"amputeeDetails\": {\n    \"birthDate\": \"1985-06-20\",\n    \"gender\": \"זכר\",\n    \"maritalStatus\": \"נשוי\",\n    \"hasChildren\": true,\n    \"numberOfChildren\": 2,\n    \"address\": { \"city\": \"תל אביב\", \"country\": \"ישראל\" }\n  },\n  \"amputationDescription\": {\n    \"amputationReason\": \"תאונת עבודה\",\n    \"insuringBody\": \"ביטוח לאומי\",\n    \"amputationTypes\": [\"קטיעת רגל\"],\n    \"amputatedLegs\": [\"ימין\"],\n    \"rightLegAmputationLevel\": \"מעל הברך\",\n    \"usesProsthesis\": \"כן\",\n    \"otherAssistiveDevices\": \"קביים\"\n  },\n  \"generalQuestions\": {\n    \"currentlyWorkingFullTime\": \"כן\",\n    \"receivingDisabilityAllowance\": \"לא\"\n  },\n  \"metadata\": { \"formId\": \"F-123\", \"submittedAt\": \"2026-06-22T10:00:00Z\" }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/registrations", "host": ["{{baseUrl}}"], "path": ["registrations"] },
+        "description": "Stores the questionnaire submission in the registrations table, persists the engine results (registrations.results JSONB), and returns { id, created_at, evaluation }. The test script saves id into the registrationId collection variable."
+      },
+      "response": []
+    },
+    {
+      "name": "Get registration by id",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/registrations/{{registrationId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["registrations", "{{registrationId}}"]
+        },
+        "description": "Fetch a stored registration row (form columns + results JSONB). Run 'Create registration' first to populate registrationId, or set it manually to a UUID."
+      },
+      "response": []
+    }
+  ]
+}
