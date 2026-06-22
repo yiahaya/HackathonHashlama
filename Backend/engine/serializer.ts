@@ -81,6 +81,28 @@ export function uiMatchOut(m: RightMatch): RightMatchUiOut {
   };
 }
 
+// Project an already-serialized full match DTO (e.g. a stored
+// `registrations.results` right) down to the UI DTO. Mirrors `uiMatchOut` but
+// reads the serialized field names, so persisted evaluations can be served in
+// the exact /evaluate/ui shape without re-running the engine.
+export function uiFromMatchOut(m: RightMatchOut): RightMatchUiOut {
+  const steps = uniqNonEmpty(
+    [...m.milestones]
+      .filter((ms) => ms.is_required)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((ms) => ms.description_he?.trim() || ms.title_he)
+  );
+  return {
+    id: m.id,
+    title: m.name_he,
+    description: uniqNonEmpty(m.benefits.map((b) => b.description_he)),
+    confidence: m.percentage,
+    source_url: m.source_url,
+    steps,
+    missing_info: uniqNonEmpty(m.missing_info),
+  };
+}
+
 export function matchOut(m: RightMatch): RightMatchOut {
   const r = m.right;
   return {

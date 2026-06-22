@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "MyRights Engine API (HackathonHashlama)",
-    "description": "Rule-based eligibility engine + per-user right tracking exposed by Backend/index.ts.\n\nFlow: a questionnaire submission (developer 1's form JSON) is evaluated by the engine and ranked rights are returned. A registration can then track its rights with a status the user manages.\n\nEvaluation:\n- POST /evaluate           - stateless: questionnaire JSON -> ranked rights (no storage), confident matches only (> 55%)\n- POST /evaluate/ui        - trimmed, presentation-ready evaluation for the frontend\n\nRegistration:\n- POST /registrations      - store the submission AND its evaluation, returns { id, evaluation }\n- POST /registrations/full - one-shot: store + evaluate + seed confident rights as 'in_process', returns { id, evaluation, tracked_rights }\n- GET  /registrations/:id  - fetch a stored registration + its results\n\nPer-user right tracking (user_id = a registration id):\n- POST   /users/:userId/rights              - bulk upsert tracked rights ({ right_ids, status? }, status defaults to 'in_process')\n- PUT    /users/:userId/rights/:rightId     - add/update the status for one (user, right) pair\n- GET    /users/:userId/rights              - list a user's tracked rights (joined with right title/url)\n- DELETE /users/:userId/rights/:rightId     - stop tracking a right\n\nStatus values: 'realized' | 'in_process' | 'worth_checking' (or null).\n\nGET  /                     - health check\n\nSet the `baseUrl` collection variable (default http://localhost:3000). 'Create registration (full)' saves the returned id into `registrationId` and the first seeded right id into `rightId`, used by the user-rights requests.",
+    "description": "Rule-based eligibility engine + POC auth + per-user right tracking exposed by Backend/index.ts.\n\nFlow: a questionnaire submission (developer 1's form JSON) is evaluated by the engine and ranked rights are returned. A registration can carry a password (POC auth), and tracks its rights with a status the user manages.\n\nAuth (POC):\n- POST /login              - { email, password } -> { user_id } (matching registration id) or { user_id: null }\n\nEvaluation:\n- POST /evaluate           - stateless: questionnaire JSON -> ranked rights (no storage), confident matches only (> 55%)\n- POST /evaluate/ui        - trimmed, presentation-ready evaluation for the frontend\n\nRegistration:\n- POST /registrations      - store the submission AND its evaluation, returns { id, evaluation }\n- POST /registrations/full - one-shot: store (with password) + evaluate + seed confident rights as 'in_process', returns ONLY { user_id }\n- GET  /registrations/:id  - fetch a stored registration + its results\n\nPer-user routes (user_id = a registration id):\n- GET    /users/:userId/evaluation          - the user's stored eligibility, in the exact /evaluate/ui shape\n- POST   /users/:userId/rights              - bulk upsert tracked rights ({ right_ids, status? }, status defaults to 'in_process')\n- PUT    /users/:userId/rights/:rightId     - add/update the status for one (user, right) pair\n- GET    /users/:userId/rights              - list a user's tracked rights (joined with right title/url)\n- DELETE /users/:userId/rights/:rightId     - stop tracking a right\n\nStatus values: 'realized' | 'in_process' | 'worth_checking' (or null).\n\nGET  /                     - health check\n\nSet the `baseUrl` collection variable (default http://localhost:3000). 'Create registration (full)' saves the returned user_id into `registrationId`; 'Get user evaluation (UI)' saves the first right id into `rightId`. Run them top to bottom for a complete walkthrough.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -16,6 +16,37 @@
         "method": "GET",
         "header": [],
         "url": { "raw": "{{baseUrl}}/", "host": ["{{baseUrl}}"], "path": [""] }
+      },
+      "response": []
+    },
+    {
+      "name": "Login (POC auth)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('has user_id field', () => pm.expect(body).to.have.property('user_id'));",
+              "if (body.user_id) {",
+              "  pm.collectionVariables.set('registrationId', body.user_id);",
+              "  console.log('Logged in, registrationId =', body.user_id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"full@b.com\",\n  \"password\": \"s3cret\"\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/login", "host": ["{{baseUrl}}"], "path": ["login"] },
+        "description": "POC auth. Body { email, password }. Returns { user_id } where user_id is the id of a registration whose email + (bcrypt) password match, or null if authentication fails. No tokens/sessions. Saves a non-null user_id into registrationId."
       },
       "response": []
     },
@@ -117,15 +148,15 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"a@b.com\",\n  \"amputeeDetails\": {\n    \"birthDate\": \"1985-06-20\",\n    \"gender\": \"זכר\",\n    \"maritalStatus\": \"נשוי\",\n    \"hasChildren\": true,\n    \"numberOfChildren\": 2,\n    \"address\": { \"city\": \"תל אביב\", \"country\": \"ישראל\" }\n  },\n  \"amputationDescription\": {\n    \"amputationReason\": \"תאונת עבודה\",\n    \"insuringBody\": \"ביטוח לאומי\",\n    \"amputationTypes\": [\"קטיעת רגל\"],\n    \"amputatedLegs\": [\"ימין\"],\n    \"rightLegAmputationLevel\": \"מעל הברך\",\n    \"usesProsthesis\": \"כן\",\n    \"otherAssistiveDevices\": \"קביים\"\n  },\n  \"generalQuestions\": {\n    \"currentlyWorkingFullTime\": \"כן\",\n    \"receivingDisabilityAllowance\": \"לא\"\n  },\n  \"metadata\": { \"formId\": \"F-123\", \"submittedAt\": \"2026-06-22T10:00:00Z\" }\n}"
+          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"a@b.com\",\n  \"password\": \"s3cret\",\n  \"amputeeDetails\": {\n    \"birthDate\": \"1985-06-20\",\n    \"gender\": \"זכר\",\n    \"maritalStatus\": \"נשוי\",\n    \"hasChildren\": true,\n    \"numberOfChildren\": 2,\n    \"address\": { \"city\": \"תל אביב\", \"country\": \"ישראל\" }\n  },\n  \"amputationDescription\": {\n    \"amputationReason\": \"תאונת עבודה\",\n    \"insuringBody\": \"ביטוח לאומי\",\n    \"amputationTypes\": [\"קטיעת רגל\"],\n    \"amputatedLegs\": [\"ימין\"],\n    \"rightLegAmputationLevel\": \"מעל הברך\",\n    \"usesProsthesis\": \"כן\",\n    \"otherAssistiveDevices\": \"קביים\"\n  },\n  \"generalQuestions\": {\n    \"currentlyWorkingFullTime\": \"כן\",\n    \"receivingDisabilityAllowance\": \"לא\"\n  },\n  \"metadata\": { \"formId\": \"F-123\", \"submittedAt\": \"2026-06-22T10:00:00Z\" }\n}"
         },
         "url": { "raw": "{{baseUrl}}/registrations", "host": ["{{baseUrl}}"], "path": ["registrations"] },
-        "description": "Stores the questionnaire submission in the registrations table, persists the engine results (registrations.results JSONB), and returns { id, created_at, evaluation }. The test script saves id into the registrationId collection variable."
+        "description": "Stores the questionnaire submission in the registrations table (password is bcrypt-hashed), persists the engine results (registrations.results JSONB), and returns { id, created_at, evaluation }. The test script saves id into the registrationId collection variable."
       },
       "response": []
     },
     {
-      "name": "Create registration (full: store + evaluate + track)",
+      "name": "Create registration (full: one-shot onboarding)",
       "event": [
         {
           "listen": "test",
@@ -134,19 +165,13 @@
             "exec": [
               "pm.test('status is 201', () => pm.response.to.have.status(201));",
               "const body = pm.response.json();",
-              "if (body.id) {",
-              "  pm.collectionVariables.set('registrationId', body.id);",
-              "  console.log('Saved registrationId =', body.id);",
-              "}",
-              "pm.test('returns evaluation + tracked_rights', () => {",
-              "  pm.expect(body.evaluation).to.have.property('rights');",
-              "  pm.expect(body.tracked_rights).to.be.an('array');",
+              "pm.test('returns only user_id', () => {",
+              "  pm.expect(body).to.have.property('user_id');",
+              "  pm.expect(Object.keys(body)).to.eql(['user_id']);",
               "});",
-              "if (body.tracked_rights && body.tracked_rights.length) {",
-              "  pm.collectionVariables.set('rightId', String(body.tracked_rights[0].right_id));",
-              "  console.log('Saved rightId =', body.tracked_rights[0].right_id);",
-              "  pm.test('seeded rights are in_process', () =>",
-              "    body.tracked_rights.forEach(r => pm.expect(r.status).to.eql('in_process')));",
+              "if (body.user_id) {",
+              "  pm.collectionVariables.set('registrationId', body.user_id);",
+              "  console.log('Saved registrationId =', body.user_id);",
               "}"
             ]
           }
@@ -157,10 +182,44 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"full@b.com\",\n  \"amputationDescription\": { \"amputationReason\": \"תאונת עבודה\" },\n  \"overrides\": { \"medical_disability_percentage\": 60, \"general_disability_percentage\": 60, \"mobility_limitation_percentage\": 60 }\n}"
+          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"full@b.com\",\n  \"password\": \"s3cret\",\n  \"amputationDescription\": { \"amputationReason\": \"תאונת עבודה\" },\n  \"overrides\": { \"medical_disability_percentage\": 60, \"general_disability_percentage\": 60, \"mobility_limitation_percentage\": 60 }\n}"
         },
         "url": { "raw": "{{baseUrl}}/registrations/full", "host": ["{{baseUrl}}"], "path": ["registrations", "full"] },
-        "description": "One-shot onboarding: stores the submission, evaluates it, and seeds the confident matches (percentage > 55) as tracked rights with status 'in_process'. Returns { id, created_at, evaluation, tracked_rights }. Saves registrationId and the first seeded rightId."
+        "description": "One-shot onboarding for the frontend: stores the submission (password bcrypt-hashed), evaluates it, and seeds the confident matches (percentage > 55) as tracked rights with status 'in_process'. Responds with ONLY { user_id }. The frontend then fetches the rights via GET /users/:userId/evaluation. Saves user_id into registrationId."
+      },
+      "response": []
+    },
+    {
+      "name": "Get user evaluation (UI)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('matches /evaluate/ui shape', () => {",
+              "  pm.expect(body.rights).to.be.an('array');",
+              "  pm.expect(body).to.have.property('disclaimer');",
+              "});",
+              "if (body.rights && body.rights.length) {",
+              "  pm.collectionVariables.set('rightId', String(body.rights[0].id));",
+              "  console.log('Saved rightId =', body.rights[0].id);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/evaluation",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "evaluation"]
+        },
+        "description": "The user's stored eligibility evaluation, projected to the exact /evaluate/ui shape ({ rights, disclaimer }), confident matches only. 404 if the registration id is unknown. Saves the first right id into rightId."
       },
       "response": []
     },

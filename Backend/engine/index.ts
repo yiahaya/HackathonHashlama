@@ -79,3 +79,5 @@ export async function evaluateUi(payload: Record<string, any>): Promise<Evaluate
 
 export { getRepository } from './repository';
 export { toProfile } from './intake';
+export { uiFromMatchOut } from './serializer';
+export type { EvaluateOut, RightMatchOut } from './types';

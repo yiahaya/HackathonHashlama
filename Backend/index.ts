@@ -4,7 +4,8 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { pool } from './db';
 import { initDb } from './initDb';
-import { evaluate, evaluateUi } from './engine';
+import { evaluate, evaluateUi, uiFromMatchOut } from './engine';
+import type { EvaluateOut } from './engine';
 
 dotenv.config();
 
@@ -67,6 +68,38 @@ app.post('/users', async (req: Request<{}, {}, CreateUserRequest>, res: Response
   }
 });
 
+// POST /login — POC auth. Accepts { email, password } and returns { user_id }:
+// the id of a registration whose email + (bcrypt) password match, or null if
+// authentication fails. No tokens/sessions — intentionally minimal for the POC.
+app.post('/login', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body || {};
+    if (!email || !password) {
+      res.status(400).json({ error: 'email and password are required' });
+      return;
+    }
+
+    // email is not unique on registrations, so check every row with this email.
+    const result = await pool.query(
+      'SELECT id, password FROM registrations WHERE email = $1 AND password IS NOT NULL',
+      [email]
+    );
+
+    let userId: string | null = null;
+    for (const row of result.rows) {
+      if (await bcrypt.compare(password, row.password)) {
+        userId = row.id;
+        break;
+      }
+    }
+
+    res.status(200).json({ user_id: userId });
+  } catch (error: any) {
+    console.error('Error during login:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
 // --- Registrations + rule engine integration ---------------------------------
 //
 // POST /registrations — store a questionnaire submission AND run the eligibility
@@ -94,10 +127,11 @@ app.post('/registrations', async (req: Request, res: Response): Promise<void> =>
   }
 });
 
-// POST /registrations/full — one-shot onboarding: store the questionnaire, run
-// the engine, AND seed the confident matches (> MIN_CONFIDENCE_PCT) as tracked
-// rights with status 'in_process' for the new registration. Returns the new id,
-// the full evaluation, and the seeded user_rights rows.
+// POST /registrations/full — one-shot onboarding for the frontend: store the
+// questionnaire, run the engine, and seed the confident matches
+// (> MIN_CONFIDENCE_PCT) as tracked rights with status 'in_process' for the new
+// registration. Responds with only the new { user_id } — the frontend then
+// fetches the UI rights via GET /users/:userId/evaluation.
 app.post('/registrations/full', async (req: Request, res: Response): Promise<void> => {
   try {
     const payload = req.body || {};
@@ -105,22 +139,13 @@ app.post('/registrations/full', async (req: Request, res: Response): Promise<voi
     const evaluation = await evaluate(payload);
     const row = await insertRegistration(payload, evaluation);
 
-    const rightIds = evaluation.rights
-      .filter((r) => r.percentage > MIN_CONFIDENCE_PCT)
-      .map((r) => r.id);
+    // Seed the confident matches as tracked rights for the new registration.
+    const confident = evaluation.rights.filter((r) => r.percentage > MIN_CONFIDENCE_PCT);
+    if (confident.length > 0) {
+      await bulkUpsertUserRights(row.id, confident.map((r) => r.id), 'in_process');
+    }
 
-    const trackedRights =
-      rightIds.length > 0
-        ? await bulkUpsertUserRights(row.id, rightIds, 'in_process')
-        : [];
-
-    res.status(201).json({
-      message: 'Registration stored, evaluated, and rights tracked',
-      id: row.id,
-      created_at: row.created_at,
-      evaluation,
-      tracked_rights: trackedRights,
-    });
+    res.status(201).json({ user_id: row.id });
   } catch (error: any) {
     console.error('Error handling full registration:', error);
     res.status(500).json({ error: 'Internal server error', detail: error.message });
@@ -301,6 +326,38 @@ app.delete('/users/:userId/rights/:rightId', async (req: Request, res: Response)
   }
 });
 
+// GET /users/:userId/evaluation — the user's eligibility evaluation in the exact
+// /evaluate/ui shape, projected from the evaluation stored at registration time
+// (registrations.results). Same confidence filter (> MIN_CONFIDENCE_PCT) as
+// /evaluate/ui. 404 if the registration id is unknown.
+app.get('/users/:userId/evaluation', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      'SELECT results FROM registrations WHERE id = $1',
+      [req.params.userId]
+    );
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: 'Registration not found' });
+      return;
+    }
+
+    const stored = result.rows[0].results as EvaluateOut | null;
+    const rights = (stored?.rights ?? [])
+      .filter((r) => r.percentage > MIN_CONFIDENCE_PCT)
+      .map(uiFromMatchOut);
+    const disclaimer = stored?.meta?.disclaimer ?? '';
+
+    res.status(200).json({ rights, disclaimer });
+  } catch (error: any) {
+    console.error('Error fetching user evaluation:', error);
+    if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
 // node-pg builds a Postgres array literal for JS arrays, which is wrong for JSONB
 // columns. Serialize JSON values explicitly so objects AND arrays round-trip.
 function jsonbParam(v: unknown): string | null {
@@ -310,17 +367,24 @@ function jsonbParam(v: unknown): string | null {
 // Persist a questionnaire submission + its engine evaluation. Returns the new
 // row's { id, created_at }. Shared by POST /registrations and /registrations/full.
 async function insertRegistration(payload: any, evaluation: unknown) {
+  // POC auth: store a bcrypt hash of the password alongside the registration so
+  // /login can verify it. Hashing is invisible to clients (still email+password).
+  const password = payload.password
+    ? await bcrypt.hash(payload.password, 10)
+    : null;
+
   const insert = `
     INSERT INTO registrations
-      ("userType", email, "amputeeDetails", "familyMemberDetails",
+      ("userType", email, password, "amputeeDetails", "familyMemberDetails",
        "amputationDescription", "prosthesisUsage", "generalQuestions",
        metadata, results)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
     RETURNING id, created_at
   `;
   const values = [
     payload.userType ?? null,
     payload.email ?? null,
+    password,
     jsonbParam(payload.amputeeDetails),
     jsonbParam(payload.familyMemberDetails),
     jsonbParam(payload.amputationDescription),

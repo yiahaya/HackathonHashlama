@@ -10,6 +10,7 @@ export async function initDb() {
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       "userType" TEXT,
       email TEXT,
+      password TEXT,
       "amputeeDetails" JSONB,
       "familyMemberDetails" JSONB,
       "amputationDescription" JSONB,
@@ -19,6 +20,11 @@ export async function initDb() {
       results JSONB,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
+    -- Migration for pre-existing tables: CREATE TABLE IF NOT EXISTS won't add the
+    -- password column to an already-created registrations table.
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS password TEXT;
+    CREATE INDEX IF NOT EXISTS registrations_email_idx ON registrations(email);
   `;
 
   const rightsQuery = `
