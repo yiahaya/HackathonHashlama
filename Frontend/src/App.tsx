@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
+import { FormWizard } from './pages/FormWizard'
 
 function App() {
   // Simple state-based routing for now
-  const [currentRoute, setCurrentRoute] = useState<'home' | 'login'>('home');
+  const [currentRoute, setCurrentRoute] = useState<'home' | 'login' | 'form'>('home');
 
   return (
     <>
@@ -18,13 +19,21 @@ function App() {
         </button>
         <button 
           onClick={() => setCurrentRoute('login')}
-          className={`px-3 py-1 rounded text-sm ${currentRoute === 'login' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
+          className={`mr-2 px-3 py-1 rounded text-sm ${currentRoute === 'login' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
         >
           Login
         </button>
+        <button 
+          onClick={() => setCurrentRoute('form')}
+          className={`px-3 py-1 rounded text-sm ${currentRoute === 'form' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
+        >
+          Form Wizard
+        </button>
       </div>
 
-      {currentRoute === 'home' ? <Home /> : <Login />}
+      {currentRoute === 'home' && <Home onNavigate={setCurrentRoute} />}
+      {currentRoute === 'login' && <Login />}
+      {currentRoute === 'form' && <FormWizard />}
     </>
   );
 }
