@@ -72,7 +72,6 @@ export function uiMatchOut(m: RightMatch): RightMatchUiOut {
   );
   return {
     id: r.id,
-    slug: r.slug,
     title: r.nameHe,
     description: uniqNonEmpty(r.benefits.map((b) => b.descriptionHe)),
     confidence: m.percentage,
