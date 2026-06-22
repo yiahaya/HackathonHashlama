@@ -84,6 +84,7 @@ export function uiMatchOut(m: RightMatch): RightMatchUiOut {
 export function matchOut(m: RightMatch): RightMatchOut {
   const r = m.right;
   return {
+    id: r.id,
     slug: r.slug,
     name_he: r.nameHe,
     name_en: r.nameEn,

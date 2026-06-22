@@ -72,36 +72,62 @@ Run from within `Backend/` or `Frontend/`. `node_modules` is gitignored and not 
   - `explainer.ts` (deterministic Hebrew text), `serializer.ts` (DTO shape), `types.ts`.
 
 ### Routes (`index.ts`)
+Evaluation + registration:
 - `POST /registrations` — store a questionnaire submission **and** evaluate it: persists the form +
-  the engine results (`registrations.results` JSONB) and returns `{ id, evaluation }`.
-- `POST /evaluate` — stateless evaluation (no storage): questionnaire JSON → ranked rights. The
-  contract for downstream consumers.
+  the engine results (`registrations.results` JSONB) and returns `{ id, evaluation }`. The shared
+  `insertRegistration(payload, evaluation)` helper does the insert.
+- `POST /registrations/full` — one-shot onboarding: store + evaluate **and** seed the confident
+  matches (`percentage > MIN_CONFIDENCE_PCT`, currently 55) into `user_rights` as `in_process` for
+  the new registration. Returns `{ id, created_at, evaluation, tracked_rights }`.
+- `POST /evaluate` — stateless evaluation (no storage): questionnaire JSON → ranked rights. Returns
+  `{ rights, meta }` (**no `profile`**) and only confident matches (`percentage > 55`). The contract
+  for downstream consumers.
+- `POST /evaluate/ui` — trimmed, presentation-ready evaluation for the frontend. Returns
+  `{ rights, disclaimer }`, confident matches only. Each right: `{ id, title, description[],
+  confidence, source_url, steps[], missing_info[] }` (via `uiMatchOut()` in `serializer.ts`).
 - `GET /registrations/:id` — fetch a stored registration + its evaluation (`404` if the id is unknown).
-- JSONB params are serialized with `jsonbParam()` so arrays/objects round-trip (node-pg otherwise
-  builds a Postgres array literal for JS arrays).
 
-The serialized response (`serializer.ts`) is `{ profile, rights[], meta }`. Each ranked right exposes
-the likelihood as **`percentage`** (0–100), **`band`** (`low`/`medium`/`high`), and **`status`**
-(e.g. `likely_eligible`) — *not* fields named `score`/`likelihood` — plus `explanation_he`,
-`met_conditions`, `missing_info`, `benefits[]`, and `milestones[]`. `meta` carries `total_evaluated`,
-`missing_inputs`, `disclaimer`, `snapshot_date`, and `form_id`.
+Per-user right tracking (`user_rights`; `user_id` is a **registration id**, FK → `registrations(id)`):
+- `POST /users/:userId/rights` — bulk upsert: body `{ right_ids: number[], status? }` (status
+  defaults to `in_process`). One atomic statement, so an unknown right id fails the whole batch.
+- `PUT /users/:userId/rights/:rightId` — add/update the status for one (user, right) pair.
+- `GET /users/:userId/rights` — list a user's tracked rights, joined with `name_he` + `source_url`.
+- `DELETE /users/:userId/rights/:rightId` — stop tracking (`204`/`404`).
+- Status is `'realized' | 'in_process' | 'worth_checking'` or `null`. PG error codes map to HTTP:
+  `23503`→404 (unknown user/right), `23514`→400 (bad status), `22P02`→400 (malformed UUID/id). The
+  bulk upsert and the registration insert share `bulkUpsertUserRights()` / `insertRegistration()`.
+
+JSONB params are serialized with `jsonbParam()` so arrays/objects round-trip (node-pg otherwise
+builds a Postgres array literal for JS arrays).
+
+The full serialized response (`matchOut()` in `serializer.ts`) is `{ profile, rights[], meta }`
+(profile is present in `/registrations` results but stripped from `/evaluate`). Each ranked right
+exposes the likelihood as **`percentage`** (0–100), **`band`** (`low`/`medium`/`high`), and
+**`status`** (e.g. `likely_eligible`) — *not* fields named `score`/`likelihood` — plus its DB
+**`id`**, `explanation_he`, `met_conditions`, `missing_info`, `benefits[]`, and `milestones[]`.
+`meta` carries `total_evaluated`, `missing_inputs`, `disclaimer`, `snapshot_date`, and `form_id`.
 
 ### The rights DB
 The engine reads `rights`, `benefits`, `criteria`, `milestones`, `right_milestones` — created and
 seeded by `initDb()` (it imports a Kol-Zchut COPY dump, `Backend/kolzchut*.sql`). pgvector is
 created but the engine does not use the `embedding` column (semantic retrieval only). Milestone
-loading degrades gracefully if those tables are absent.
+loading degrades gracefully if those tables are absent. `initDb()` also creates `registrations` and
+`user_rights` (the per-user right-status join table, `UNIQUE(user_id, right_id)`, status
+`CHECK`-constrained and nullable).
 
 ## Important caveats (current branch state)
 
 These are real inconsistencies in the code as it stands — verify intent before building on them:
-- **`initDb()` is destructive for `registrations` and runs on every server start.** It
-  `DROP TABLE IF EXISTS users` and `registrations`, then recreates `registrations`. Every
-  `npm run dev`/`start` wipes registrations. The rights tables use `CREATE TABLE IF NOT EXISTS` and
-  are seeded only when empty, so they survive restarts.
-- **Orphaned `/users` route.** `POST /users` inserts into a `users` table that `initDb()` drops and
-  never recreates — that endpoint fails at runtime. It's leftover scaffold; the live entry points are
-  `POST /registrations` and `POST /evaluate`.
+- **`initDb()` is now non-destructive — all tables use `CREATE TABLE IF NOT EXISTS` and survive
+  restarts.** `registrations` was made non-destructive so `user_rights` can hold an FK to it across
+  restarts; only the dead `users` table is still `DROP`ed each start. (The rights tables are seeded
+  only when empty.) Because schema changes use `IF NOT EXISTS`, **altering a column requires a manual
+  migration or dropping the table** — `initDb()` will not pick up the change on its own.
+- **Orphaned `POST /users` (auth-style) route.** `POST /users` inserts into a `users` table that
+  `initDb()` drops and never recreates — that endpoint fails at runtime. It's leftover scaffold.
+  Note this is unrelated to the live `*/users/:userId/rights` tracking routes (those use `user_rights`
+  with `user_id` = a registration id). The live entry points are `POST /registrations`,
+  `POST /registrations/full`, and `POST /evaluate`.
 
 ## TypeScript / toolchain notes
 

@@ -1,12 +1,13 @@
 {
   "info": {
     "name": "MyRights Engine API (HackathonHashlama)",
-    "description": "Rule-based eligibility engine endpoints exposed by Backend/index.ts.\n\nFlow: a questionnaire submission (developer 1's form JSON) is evaluated by the engine and ranked rights are returned.\n\n- POST /evaluate          - stateless: questionnaire JSON -> ranked rights (no storage)\n- POST /registrations     - store the submission AND its evaluation, returns { id, evaluation }\n- GET  /registrations/:id - fetch a stored registration + its results\n- GET  /                  - health check\n\nSet the `baseUrl` collection variable (default http://localhost:3000). The 'Create registration' request saves the returned id into `registrationId`, used by 'Get registration by id'.",
+    "description": "Rule-based eligibility engine + per-user right tracking exposed by Backend/index.ts.\n\nFlow: a questionnaire submission (developer 1's form JSON) is evaluated by the engine and ranked rights are returned. A registration can then track its rights with a status the user manages.\n\nEvaluation:\n- POST /evaluate           - stateless: questionnaire JSON -> ranked rights (no storage), confident matches only (> 55%)\n- POST /evaluate/ui        - trimmed, presentation-ready evaluation for the frontend\n\nRegistration:\n- POST /registrations      - store the submission AND its evaluation, returns { id, evaluation }\n- POST /registrations/full - one-shot: store + evaluate + seed confident rights as 'in_process', returns { id, evaluation, tracked_rights }\n- GET  /registrations/:id  - fetch a stored registration + its results\n\nPer-user right tracking (user_id = a registration id):\n- POST   /users/:userId/rights              - bulk upsert tracked rights ({ right_ids, status? }, status defaults to 'in_process')\n- PUT    /users/:userId/rights/:rightId     - add/update the status for one (user, right) pair\n- GET    /users/:userId/rights              - list a user's tracked rights (joined with right title/url)\n- DELETE /users/:userId/rights/:rightId     - stop tracking a right\n\nStatus values: 'realized' | 'in_process' | 'worth_checking' (or null).\n\nGET  /                     - health check\n\nSet the `baseUrl` collection variable (default http://localhost:3000). 'Create registration (full)' saves the returned id into `registrationId` and the first seeded right id into `rightId`, used by the user-rights requests.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:3000", "type": "string" },
-    { "key": "registrationId", "value": "", "type": "string" }
+    { "key": "registrationId", "value": "", "type": "string" },
+    { "key": "rightId", "value": "", "type": "string" }
   ],
   "item": [
     {
@@ -29,9 +30,15 @@
               "pm.test('status is 200', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
               "pm.test('has ranked rights', () => pm.expect(body.rights).to.be.an('array'));",
-              "pm.test('has profile + meta', () => {",
-              "  pm.expect(body.profile).to.be.an('object');",
+              "pm.test('has meta, no profile', () => {",
+              "  pm.expect(body).to.not.have.property('profile');",
               "  pm.expect(body.meta).to.have.property('missing_inputs');",
+              "});",
+              "pm.test('rights carry id + percentage', () => {",
+              "  if (body.rights.length) {",
+              "    pm.expect(body.rights[0]).to.have.property('id');",
+              "    pm.expect(body.rights[0]).to.have.property('percentage');",
+              "  }",
               "});"
             ]
           }
@@ -42,10 +49,47 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"a@b.com\",\n  \"amputeeDetails\": {\n    \"birthDate\": \"1985-06-20\",\n    \"gender\": \"זכר\",\n    \"maritalStatus\": \"נשוי\",\n    \"hasChildren\": true,\n    \"numberOfChildren\": 2,\n    \"address\": { \"city\": \"תל אביב\", \"country\": \"ישראל\" }\n  },\n  \"amputationDescription\": {\n    \"amputationReason\": \"תאונת עבודה\",\n    \"insuringBody\": \"ביטוח לאומי\",\n    \"amputationTypes\": [\"קטיעת רגל\"],\n    \"amputatedLegs\": [\"ימין\"],\n    \"rightLegAmputationLevel\": \"מעל הברך\",\n    \"usesProsthesis\": \"כן\",\n    \"otherAssistiveDevices\": \"קביים\"\n  },\n  \"generalQuestions\": {\n    \"currentlyWorkingFullTime\": \"כן\",\n    \"receivingDisabilityAllowance\": \"לא\"\n  },\n  \"metadata\": { \"formId\": \"F-123\", \"submittedAt\": \"2026-06-22T10:00:00Z\" }\n}"
+          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"a@b.com\",\n  \"amputeeDetails\": {\n    \"birthDate\": \"1985-06-20\",\n    \"gender\": \"זכר\",\n    \"maritalStatus\": \"נשוי\",\n    \"hasChildren\": true,\n    \"numberOfChildren\": 2,\n    \"address\": { \"city\": \"תל אביב\", \"country\": \"ישראל\" }\n  },\n  \"amputationDescription\": {\n    \"amputationReason\": \"תאונת עבודה\",\n    \"insuringBody\": \"ביטוח לאומי\",\n    \"amputationTypes\": [\"קטיעת רגל\"],\n    \"amputatedLegs\": [\"ימין\"],\n    \"rightLegAmputationLevel\": \"מעל הברך\",\n    \"usesProsthesis\": \"כן\",\n    \"otherAssistiveDevices\": \"קביים\"\n  },\n  \"generalQuestions\": {\n    \"currentlyWorkingFullTime\": \"כן\",\n    \"receivingDisabilityAllowance\": \"לא\"\n  },\n  \"metadata\": { \"formId\": \"F-123\", \"submittedAt\": \"2026-06-22T10:00:00Z\" },\n  \"overrides\": { \"medical_disability_percentage\": 60, \"general_disability_percentage\": 60, \"mobility_limitation_percentage\": 60 }\n}"
         },
         "url": { "raw": "{{baseUrl}}/evaluate", "host": ["{{baseUrl}}"], "path": ["evaluate"] },
-        "description": "Stateless evaluation. Body is developer 1's questionnaire-result JSON. Returns { profile, rights[], meta }.\n\nOptional: add a top-level \"overrides\" object to supply attributes the form doesn't capture, e.g.\n  \"overrides\": { \"medical_disability_percentage\": 60, \"income_monthly\": 4500 }\nThese clear themselves from meta.missing_inputs."
+        "description": "Stateless evaluation. Body is developer 1's questionnaire-result JSON. Returns { rights[], meta } (no profile) and only confident matches (percentage > 55).\n\nOptional: add a top-level \"overrides\" object to supply attributes the form doesn't capture, e.g.\n  \"overrides\": { \"medical_disability_percentage\": 60, \"income_monthly\": 4500 }\nThese clear themselves from meta.missing_inputs."
+      },
+      "response": []
+    },
+    {
+      "name": "Evaluate (UI)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('has rights + disclaimer', () => {",
+              "  pm.expect(body.rights).to.be.an('array');",
+              "  pm.expect(body).to.have.property('disclaimer');",
+              "});",
+              "pm.test('rights have UI fields', () => {",
+              "  if (body.rights.length) {",
+              "    const r = body.rights[0];",
+              "    ['id','title','description','confidence','source_url','steps','missing_info'].forEach(k =>",
+              "      pm.expect(r).to.have.property(k));",
+              "  }",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"amputationDescription\": { \"amputationReason\": \"תאונת עבודה\" },\n  \"overrides\": { \"medical_disability_percentage\": 60, \"general_disability_percentage\": 60, \"mobility_limitation_percentage\": 60 }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/evaluate/ui", "host": ["{{baseUrl}}"], "path": ["evaluate", "ui"] },
+        "description": "Trimmed, presentation-ready evaluation for the frontend. Returns { rights[], disclaimer }, confident matches only. Each right: { id, title, description[], confidence, source_url, steps[], missing_info[] }."
       },
       "response": []
     },
@@ -81,6 +125,46 @@
       "response": []
     },
     {
+      "name": "Create registration (full: store + evaluate + track)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 201', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "if (body.id) {",
+              "  pm.collectionVariables.set('registrationId', body.id);",
+              "  console.log('Saved registrationId =', body.id);",
+              "}",
+              "pm.test('returns evaluation + tracked_rights', () => {",
+              "  pm.expect(body.evaluation).to.have.property('rights');",
+              "  pm.expect(body.tracked_rights).to.be.an('array');",
+              "});",
+              "if (body.tracked_rights && body.tracked_rights.length) {",
+              "  pm.collectionVariables.set('rightId', String(body.tracked_rights[0].right_id));",
+              "  console.log('Saved rightId =', body.tracked_rights[0].right_id);",
+              "  pm.test('seeded rights are in_process', () =>",
+              "    body.tracked_rights.forEach(r => pm.expect(r.status).to.eql('in_process')));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"full@b.com\",\n  \"amputationDescription\": { \"amputationReason\": \"תאונת עבודה\" },\n  \"overrides\": { \"medical_disability_percentage\": 60, \"general_disability_percentage\": 60, \"mobility_limitation_percentage\": 60 }\n}"
+        },
+        "url": { "raw": "{{baseUrl}}/registrations/full", "host": ["{{baseUrl}}"], "path": ["registrations", "full"] },
+        "description": "One-shot onboarding: stores the submission, evaluates it, and seeds the confident matches (percentage > 55) as tracked rights with status 'in_process'. Returns { id, created_at, evaluation, tracked_rights }. Saves registrationId and the first seeded rightId."
+      },
+      "response": []
+    },
+    {
       "name": "Get registration by id",
       "request": {
         "method": "GET",
@@ -90,7 +174,97 @@
           "host": ["{{baseUrl}}"],
           "path": ["registrations", "{{registrationId}}"]
         },
-        "description": "Fetch a stored registration row (form columns + results JSONB). Run 'Create registration' first to populate registrationId, or set it manually to a UUID."
+        "description": "Fetch a stored registration row (form columns + results JSONB). Run a 'Create registration' request first to populate registrationId, or set it manually to a UUID."
+      },
+      "response": []
+    },
+    {
+      "name": "Track rights (bulk upsert)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('returns rows', () => pm.expect(body.rights).to.be.an('array'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"right_ids\": [3, 13],\n  \"status\": \"in_process\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/rights",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "rights"]
+        },
+        "description": "Bulk add/update tracked rights for a user (registration). Body: { right_ids: number[], status?: 'realized'|'in_process'|'worth_checking'|null }. status defaults to 'in_process'. Atomic: an unknown right id fails the whole batch (404)."
+      },
+      "response": []
+    },
+    {
+      "name": "Set/update one right status",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('status is 200', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('row has status', () => pm.expect(body).to.have.property('status'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "PUT",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"realized\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/rights/{{rightId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "rights", "{{rightId}}"]
+        },
+        "description": "Add or update the tracked status for one (user, right) pair. Body: { status: 'realized'|'in_process'|'worth_checking'|null }. Returns the upserted row."
+      },
+      "response": []
+    },
+    {
+      "name": "List user's tracked rights",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/rights",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "rights"]
+        },
+        "description": "List the rights a user is tracking, joined with right name_he + source_url. Returns { rights: [...] } (empty array for an unknown user)."
+      },
+      "response": []
+    },
+    {
+      "name": "Untrack a right",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/rights/{{rightId}}",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "rights", "{{rightId}}"]
+        },
+        "description": "Stop tracking a right for a user. 204 on success, 404 if the (user, right) pair was not tracked."
       },
       "response": []
     }

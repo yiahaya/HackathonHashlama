@@ -110,6 +110,7 @@ export interface MilestoneOut {
 }
 
 export interface RightMatchOut {
+  id: number;
   slug: string;
   name_he: string;
   name_en: string | null;

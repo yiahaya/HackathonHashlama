@@ -5,9 +5,8 @@ import path from 'path';
 export async function initDb() {
   const registrationsQuery = `
     DROP TABLE IF EXISTS users;
-    DROP TABLE IF EXISTS registrations;
 
-    CREATE TABLE registrations (
+    CREATE TABLE IF NOT EXISTS registrations (
       id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
       "userType" TEXT,
       email TEXT,
@@ -154,6 +153,17 @@ export async function initDb() {
 
     CREATE INDEX IF NOT EXISTS rights_embedding_idx
         ON rights USING hnsw (embedding vector_cosine_ops);
+
+    CREATE TABLE IF NOT EXISTS user_rights (
+        id          SERIAL PRIMARY KEY,
+        user_id     UUID NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
+        right_id    INTEGER NOT NULL REFERENCES rights(id) ON DELETE CASCADE,
+        status      TEXT CHECK (status IN ('realized','in_process','worth_checking')),
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+        UNIQUE (user_id, right_id)
+    );
+    CREATE INDEX IF NOT EXISTS user_rights_user_id_idx ON user_rights(user_id);
   `;
 
   try {

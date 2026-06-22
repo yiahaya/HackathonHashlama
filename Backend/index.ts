@@ -14,6 +14,9 @@ const port = process.env.PORT || 3000;
 // Eligibility results below this confidence (%) are not returned to clients.
 const MIN_CONFIDENCE_PCT = 55;
 
+// Allowed values for a user's tracked status on a right (status may also be null).
+const RIGHT_STATUSES = ['realized', 'in_process', 'worth_checking'] as const;
+
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
@@ -77,28 +80,7 @@ app.post('/registrations', async (req: Request, res: Response): Promise<void> =>
     // Run the rule engine first (it doesn't need the stored row).
     const evaluation = await evaluate(payload);
 
-    const insert = `
-      INSERT INTO registrations
-        ("userType", email, "amputeeDetails", "familyMemberDetails",
-         "amputationDescription", "prosthesisUsage", "generalQuestions",
-         metadata, results)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      RETURNING id, created_at
-    `;
-    const values = [
-      payload.userType ?? null,
-      payload.email ?? null,
-      jsonbParam(payload.amputeeDetails),
-      jsonbParam(payload.familyMemberDetails),
-      jsonbParam(payload.amputationDescription),
-      jsonbParam(payload.prosthesisUsage),
-      jsonbParam(payload.generalQuestions),
-      jsonbParam(payload.metadata),
-      JSON.stringify(evaluation),
-    ];
-
-    const result = await pool.query(insert, values);
-    const row = result.rows[0];
+    const row = await insertRegistration(payload, evaluation);
 
     res.status(201).json({
       message: 'Registration stored and evaluated',
@@ -108,6 +90,39 @@ app.post('/registrations', async (req: Request, res: Response): Promise<void> =>
     });
   } catch (error: any) {
     console.error('Error handling registration:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
+// POST /registrations/full — one-shot onboarding: store the questionnaire, run
+// the engine, AND seed the confident matches (> MIN_CONFIDENCE_PCT) as tracked
+// rights with status 'in_process' for the new registration. Returns the new id,
+// the full evaluation, and the seeded user_rights rows.
+app.post('/registrations/full', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const payload = req.body || {};
+
+    const evaluation = await evaluate(payload);
+    const row = await insertRegistration(payload, evaluation);
+
+    const rightIds = evaluation.rights
+      .filter((r) => r.percentage > MIN_CONFIDENCE_PCT)
+      .map((r) => r.id);
+
+    const trackedRights =
+      rightIds.length > 0
+        ? await bulkUpsertUserRights(row.id, rightIds, 'in_process')
+        : [];
+
+    res.status(201).json({
+      message: 'Registration stored, evaluated, and rights tracked',
+      id: row.id,
+      created_at: row.created_at,
+      evaluation,
+      tracked_rights: trackedRights,
+    });
+  } catch (error: any) {
+    console.error('Error handling full registration:', error);
     res.status(500).json({ error: 'Internal server error', detail: error.message });
   }
 });
@@ -159,10 +174,177 @@ app.get('/registrations/:id', async (req: Request, res: Response): Promise<void>
   }
 });
 
+// --- Per-user right tracking ------------------------------------------------
+//
+// `user_rights` ties a registration (the "user") to a right with an optional
+// status the user is tracking: 'realized' | 'in_process' | 'worth_checking'
+// (or null). These routes add/update, list, and remove those tracked rights.
+
+// PUT /users/:userId/rights/:rightId — add or update the tracked status for a
+// (user, right) pair. Body: { "status": <one of RIGHT_STATUSES | null> }.
+app.put('/users/:userId/rights/:rightId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, rightId } = req.params;
+    const status = req.body?.status ?? null;
+
+    if (status !== null && !RIGHT_STATUSES.includes(status)) {
+      res.status(400).json({
+        error: `status must be null or one of: ${RIGHT_STATUSES.join(', ')}`,
+      });
+      return;
+    }
+
+    const result = await pool.query(
+      `INSERT INTO user_rights (user_id, right_id, status)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (user_id, right_id)
+       DO UPDATE SET status = EXCLUDED.status, updated_at = now()
+       RETURNING *`,
+      [userId, rightId, status]
+    );
+
+    res.status(200).json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error upserting user right:', error);
+    if (error.code === '23503') {
+      res.status(404).json({ error: 'Unknown user or right' });
+    } else if (error.code === '23514') {
+      res.status(400).json({ error: 'Invalid status value' });
+    } else if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id or right id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
+// POST /users/:userId/rights — bulk add/update tracked rights. Body:
+// { "right_ids": number[], "status"?: <RIGHT_STATUSES | null> }. Status defaults
+// to 'in_process'. Atomic: an unknown right id fails the whole batch (404).
+app.post('/users/:userId/rights', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const rightIds = req.body?.right_ids;
+    const status = req.body?.status === undefined ? 'in_process' : req.body.status;
+
+    if (!Array.isArray(rightIds) || rightIds.length === 0) {
+      res.status(400).json({ error: 'right_ids must be a non-empty array' });
+      return;
+    }
+    if (status !== null && !RIGHT_STATUSES.includes(status)) {
+      res.status(400).json({
+        error: `status must be null or one of: ${RIGHT_STATUSES.join(', ')}`,
+      });
+      return;
+    }
+
+    const rows = await bulkUpsertUserRights(userId, rightIds, status);
+    res.status(200).json({ rights: rows });
+  } catch (error: any) {
+    console.error('Error bulk-upserting user rights:', error);
+    if (error.code === '23503') {
+      res.status(404).json({ error: 'Unknown user or right' });
+    } else if (error.code === '23514') {
+      res.status(400).json({ error: 'Invalid status value' });
+    } else if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id or right id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
+// GET /users/:userId/rights — list the rights a user is tracking, joined with
+// human-readable right fields. Returns an empty list for an unknown user.
+app.get('/users/:userId/rights', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      `SELECT ur.right_id, ur.status, ur.created_at, ur.updated_at,
+              r.name_he, r.source_url
+       FROM user_rights ur
+       JOIN rights r ON r.id = ur.right_id
+       WHERE ur.user_id = $1
+       ORDER BY ur.updated_at DESC`,
+      [req.params.userId]
+    );
+    res.status(200).json({ rights: result.rows });
+  } catch (error: any) {
+    console.error('Error listing user rights:', error);
+    if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
+// DELETE /users/:userId/rights/:rightId — stop tracking a right for a user.
+app.delete('/users/:userId/rights/:rightId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, rightId } = req.params;
+    const result = await pool.query(
+      'DELETE FROM user_rights WHERE user_id = $1 AND right_id = $2',
+      [userId, rightId]
+    );
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: 'Tracked right not found' });
+      return;
+    }
+    res.status(204).send();
+  } catch (error: any) {
+    console.error('Error deleting user right:', error);
+    if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id or right id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
 // node-pg builds a Postgres array literal for JS arrays, which is wrong for JSONB
 // columns. Serialize JSON values explicitly so objects AND arrays round-trip.
 function jsonbParam(v: unknown): string | null {
   return v === undefined || v === null ? null : JSON.stringify(v);
+}
+
+// Persist a questionnaire submission + its engine evaluation. Returns the new
+// row's { id, created_at }. Shared by POST /registrations and /registrations/full.
+async function insertRegistration(payload: any, evaluation: unknown) {
+  const insert = `
+    INSERT INTO registrations
+      ("userType", email, "amputeeDetails", "familyMemberDetails",
+       "amputationDescription", "prosthesisUsage", "generalQuestions",
+       metadata, results)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING id, created_at
+  `;
+  const values = [
+    payload.userType ?? null,
+    payload.email ?? null,
+    jsonbParam(payload.amputeeDetails),
+    jsonbParam(payload.familyMemberDetails),
+    jsonbParam(payload.amputationDescription),
+    jsonbParam(payload.prosthesisUsage),
+    jsonbParam(payload.generalQuestions),
+    jsonbParam(payload.metadata),
+    JSON.stringify(evaluation),
+  ];
+  const result = await pool.query(insert, values);
+  return result.rows[0];
+}
+
+// Upsert many (user, right) pairs to a single status in one statement. Returns
+// the affected rows. Shared by POST /users/:userId/rights and /registrations/full.
+async function bulkUpsertUserRights(userId: string, rightIds: number[], status: string | null) {
+  const result = await pool.query(
+    `INSERT INTO user_rights (user_id, right_id, status)
+     SELECT $1, rid, $3 FROM unnest($2::int[]) AS rid
+     ON CONFLICT (user_id, right_id)
+     DO UPDATE SET status = EXCLUDED.status, updated_at = now()
+     RETURNING *`,
+    [userId, rightIds, status]
+  );
+  return result.rows;
 }
 
 initDb().then(() => {
