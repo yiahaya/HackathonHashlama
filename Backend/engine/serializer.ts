@@ -71,6 +71,7 @@ export function uiMatchOut(m: RightMatch): RightMatchUiOut {
       .map((ms) => ms.descriptionHe?.trim() || ms.titleHe)
   );
   return {
+    id: r.id,
     slug: r.slug,
     title: r.nameHe,
     description: uniqNonEmpty(r.benefits.map((b) => b.descriptionHe)),

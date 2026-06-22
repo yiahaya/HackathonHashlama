@@ -144,6 +144,7 @@ export interface EvaluateOut {
 // Only the fields a UI renders. No engine profile, no diagnostics.
 
 export interface RightMatchUiOut {
+  id: number;                // right DB id
   slug: string;              // stable key for list rendering
   title: string;             // right name (Hebrew)
   description: string[];     // descriptions of the right's benefits
