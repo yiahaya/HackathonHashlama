@@ -18,13 +18,17 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
           <div className="flex flex-wrap justify-center gap-4 w-full md:w-auto">
             <Button 
               variant="primary" 
-              className="!px-8 md:min-w-[400px]"
+              className="!px-8"
               onClick={() => onNavigate && onNavigate('form')}
             >
-              לבדיקת זכויות מותאמת אישית ללא הרשמה
+               להרשמה ראשונית
             </Button>
-            <Button variant="primary" className="!px-8">
-              לאיזור האישי
+            <Button 
+              variant="primary" 
+              className="!px-8"
+              onClick={() => onNavigate && onNavigate('login')}
+            >
+              כניסה לאיזור האישי
             </Button>
           </div>
         </section>

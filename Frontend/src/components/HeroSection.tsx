@@ -3,14 +3,15 @@ import { Button } from './Button';
 
 export const HeroSection: React.FC = () => {
   return (
-    <section className="pt-32 pb-16 px-6 lg:px-20 max-w-7xl mx-auto flex flex-col-reverse lg:flex-row items-center gap-12">
+    <section className="pt-32 pb-16 px-6 lg:px-20 mx-auto flex flex-col-reverse lg:flex-row items-center gap-12">
       {/* Content */}
       <div className="flex-1 flex flex-col items-end text-right gap-6">
         <h2 className="text-4xl lg:text-5xl font-bold text-brand-textDark leading-tight">
           אנחנו כאן בשבילך לכל צעד בתהליך!
         </h2>
         <p className="text-lg text-brand-textDark leading-relaxed max-w-lg">
-          טקסט המתאר את עמותת "הצעד הבא". העמותה מלווה קטועי גפיים ובני משפחותיהם בכל שלבי השיקום וההתמודדות.
+         ברוכים הבאים הביתה. הצעד הבא הינו הגוף המוביל והמקצועי המהווה בית לקטועי הגפיים בישראל. אנחנו כאן כדי לעמוד לצדכם, לסייע, לתמוך ולעודד לאורך כל התהליך. החל משלב ראשוני של מידע וליווי אישי, ועד להשגת תותבות(פרוטזות) המיוצרות בטכנולוגיות מתקדמות, על מנת להגיע לעצמאות תפקודית מלאה.
+מאז 2015 , הצעד הבא מאגד את קהילת הקטועים בישראל. מלווים אתכם בתהליך השיקום עם קבוצות ומפגשי העצמה, ספורט, תמיכה וליווי, לצד מתן דגש ומאמצים רבים כדי לשנות את גישת הרשויות בישראל לצרכיהם של הקטועים. יחד נעשה צעדים קטנים וגדולים כדי להגיע למצב בו תוכלו להגיע לחיי איכות גבוהים עם מירב היכולות הפיזיות ורמת תפקוד מקסימלית בסטנדרטים של המדינות המתקדמות בעולם.
         </p>
         
         <div className="mt-4">
