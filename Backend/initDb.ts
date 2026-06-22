@@ -16,7 +16,9 @@ export async function initDb() {
       "amputationDescription" JSONB,
       "prosthesisUsage" JSONB,
       "generalQuestions" JSONB,
-      metadata JSONB
+      metadata JSONB,
+      results JSONB,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `;
 
