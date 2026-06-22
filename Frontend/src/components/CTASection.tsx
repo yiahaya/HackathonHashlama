@@ -1,6 +1,10 @@
 import React from 'react';
 
-export const CTASection: React.FC = () => {
+interface CTASectionProps {
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact') => void;
+}
+
+export const CTASection: React.FC<CTASectionProps> = ({ onNavigate }) => {
   return (
     <section className="px-6 lg:px-20 py-12 max-w-7xl mx-auto">
       <div className="bg-brand-secondary rounded-[48px] p-12 lg:p-16 relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8">
@@ -18,7 +22,10 @@ export const CTASection: React.FC = () => {
         </div>
 
         <div className="z-10">
-          <button className="bg-white text-brand-primary font-medium text-xl px-8 py-5 rounded-full hover:bg-gray-50 transition-colors shadow-lg">
+          <button 
+            onClick={() => onNavigate && onNavigate('contact')}
+            className="bg-white text-brand-primary font-medium text-xl px-8 py-5 rounded-full hover:bg-gray-50 transition-colors shadow-lg"
+          >
             השאירו פנייה ונחזור אליכם
           </button>
         </div>

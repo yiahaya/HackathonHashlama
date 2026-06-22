@@ -34,7 +34,7 @@ export const Home: React.FC<HomeProps> = ({ onNavigate }) => {
         </section>
 
         <HeroSection />
-        <CTASection />
+        <CTASection onNavigate={onNavigate} />
       </main>
     </div>
   );
