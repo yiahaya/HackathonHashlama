@@ -4,6 +4,7 @@ import { Login } from './pages/Login';
 import { FormWizard } from './pages/FormWizard'
 import { Contact } from './pages/Contact';
 import { Dashboard } from './pages/Dashboard';
+import { VoiceAssistant } from './components/VoiceAssistant';
 
 function App() {
   // Simple state-based routing for now
@@ -51,6 +52,8 @@ function App() {
       {currentRoute === 'form' && <FormWizard onNavigate={setCurrentRoute} />}
       {currentRoute === 'contact' && <Contact onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
       {currentRoute === 'dashboard' && <Dashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
+
+      <VoiceAssistant onNavigate={setCurrentRoute} />
     </>
   );
 }
