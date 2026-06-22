@@ -62,14 +62,21 @@ function descs(crits: Criterion[], limit = 5): string[] {
 // Presentation-ready projection for the frontend: only what a UI shows.
 export function uiMatchOut(m: RightMatch): RightMatchUiOut {
   const r = m.right;
+  // Required milestones, in sort order. Milestone description_he is usually null
+  // in this dataset, so fall back to the milestone title for human-readable text.
+  const steps = uniqNonEmpty(
+    [...r.milestones]
+      .filter((ms) => ms.isRequired)
+      .sort((a, b) => a.sortOrder - b.sortOrder)
+      .map((ms) => ms.descriptionHe?.trim() || ms.titleHe)
+  );
   return {
     slug: r.slug,
     title: r.nameHe,
-    description: r.descriptionHe,
+    description: uniqNonEmpty(r.benefits.map((b) => b.descriptionHe)),
     confidence: m.percentage,
     source_url: r.sourceUrl,
-    benefits: uniqNonEmpty(r.benefits.map((b) => b.descriptionHe)),
-    criteria: uniqNonEmpty(m.matched.map((c) => c.descriptionHe)),
+    steps,
     missing_info: uniqNonEmpty(m.unknownRequired.map((c) => c.descriptionHe)),
   };
 }
