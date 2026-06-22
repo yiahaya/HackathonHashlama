@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TopNavBar } from '../components/TopNavBar';
 import { RightsCard } from '../components/dashboard/RightsCard';
+import { AIChatModal } from '../components/AIChatModal';
 import { mockRights, type RightItem, type RightStatus } from '../data/mockRights';
 
 interface DashboardProps {
@@ -11,6 +12,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn }) => {
   const [rights, setRights] = useState<RightItem[]>(mockRights);
   const [activeTab, setActiveTab] = useState<RightStatus | 'all'>('all');
+  const [isChatOpen, setIsChatOpen] = useState(false);
 
   const handleStatusChange = (id: string, newStatus: RightStatus) => {
     setRights(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
@@ -54,12 +56,23 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn }) 
             </p>
           </div>
 
-          <button className="bg-[#FEA776] text-[#773A12] font-semibold px-6 py-3 rounded-full hover:bg-[#FEA776]/80 transition-colors flex items-center gap-2">
-            לעריכת הפרטים שלי
-            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
-          </button>
+          <div className="flex flex-col sm:flex-row items-center gap-4">
+            <button 
+              onClick={() => setIsChatOpen(true)}
+              className="bg-white text-brand-primary border-2 border-brand-primary font-semibold px-6 py-3 rounded-full hover:bg-brand-primary hover:text-white transition-colors flex items-center gap-2 shadow-sm w-full sm:w-auto justify-center"
+            >
+              שוחח עם AI
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </button>
+            <button className="bg-[#FEA776] text-[#773A12] font-semibold px-6 py-3 rounded-full hover:bg-[#FEA776]/80 transition-colors flex items-center gap-2 w-full sm:w-auto justify-center">
+              לעריכת הפרטים שלי
+              <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
         {/* Tabs Section */}
@@ -108,6 +121,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn }) 
         </div>
         
       </main>
+
+      <AIChatModal isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
     </div>
   );
 };
