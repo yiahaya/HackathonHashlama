@@ -35,9 +35,14 @@ export const FormWizard: React.FC<FormWizardProps> = ({ onNavigate }) => {
   const goToPage = (pageNumber: number) => setCurrentPage(pageNumber);
 
   return (
-    <div className="min-h-screen bg-brand-bgLight pb-20">
+    <div className="min-h-screen bg-brand-bgLight pb-20 relative overflow-hidden">
       <TopNavBar onNavigate={onNavigate} isLoggedIn={false} />
-      <div className="max-w-3xl mx-auto pt-24 px-6">
+
+      {/* Atmospheric Background Element */}
+      <div className="absolute top-[20%] right-[10%] w-[500px] h-[500px] bg-brand-primary/10 blur-[100px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[10%] left-[10%] w-[400px] h-[400px] bg-[#FEA776]/10 blur-[80px] rounded-full pointer-events-none" />
+
+      <div className="max-w-3xl mx-auto pt-24 px-6 relative z-10">
         <div className="bg-white rounded-[32px] p-8 md:p-12 shadow-xl border border-brand-primary/10">
           
           {currentPage === 1 && (

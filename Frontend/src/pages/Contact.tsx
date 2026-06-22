@@ -38,10 +38,14 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
   };
 
   return (
-    <div className="min-h-screen bg-brand-bgLight">
+    <div className="min-h-screen bg-brand-bgLight relative overflow-hidden">
       <TopNavBar onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
       
-      <main className="pt-32 pb-16 px-6 flex justify-center items-center">
+      {/* Atmospheric Background Element */}
+      <div className="absolute top-1/4 left-1/4 w-[400px] h-[400px] bg-brand-primary/10 blur-[80px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-[#FEA776]/10 blur-[100px] rounded-full pointer-events-none" />
+
+      <main className="pt-32 pb-16 px-6 flex justify-center items-center relative z-10">
         <div className="w-full max-w-[700px] flex flex-col gap-10">
           
           <div className="text-center flex flex-col gap-4">

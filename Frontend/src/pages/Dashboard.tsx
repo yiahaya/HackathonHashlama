@@ -35,10 +35,14 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn }) 
   const filteredRights = rights.filter(r => activeTab === 'all' || r.status === activeTab);
 
   return (
-    <div className="min-h-screen bg-brand-bgLight pb-20">
+    <div className="min-h-screen bg-brand-bgLight pb-20 relative overflow-hidden">
       <TopNavBar onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
       
-      <main className="pt-32 px-6 lg:px-20 max-w-7xl mx-auto flex flex-col gap-10">
+      {/* Atmospheric Background Element */}
+      <div className="absolute top-[10%] right-[-150px] w-[600px] h-[600px] bg-[#FEA776]/10 blur-[100px] rounded-full pointer-events-none" />
+      <div className="absolute bottom-[20%] left-[-200px] w-[500px] h-[500px] bg-brand-primary/5 blur-[80px] rounded-full pointer-events-none" />
+
+      <main className="pt-32 px-6 lg:px-20 max-w-7xl mx-auto flex flex-col gap-10 relative z-10">
         
         {/* Header Section */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-[#DBC2B2]/40 pb-8">
