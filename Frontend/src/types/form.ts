@@ -37,8 +37,12 @@ export interface FormData {
     circumstances: string;
     insuringBody: string;
     amputationType: string[]; // Hand, Leg, etc.
-    whichLimb: string[]; // Left, Right
-    amputationLevel: string[];
+    whichLeg: string[];
+    legRightLevel: string;
+    legLeftLevel: string;
+    whichHand: string[];
+    handRightLevel: string;
+    handLeftLevel: string;
     dailyActivityLevel: string;
     dailyActivityDescription: string;
     usesProsthesis: string;
@@ -89,7 +93,7 @@ export const initialFormData: FormData = {
   },
   amputationDescription: {
     amputationDate: '', reason: '', circumstances: '', insuringBody: '',
-    amputationType: [], whichLimb: [], amputationLevel: [], dailyActivityLevel: '',
+    amputationType: [], whichLeg: [], legRightLevel: '', legLeftLevel: '', whichHand: [], handRightLevel: '', handLeftLevel: '', dailyActivityLevel: '',
     dailyActivityDescription: '', usesProsthesis: '', reasonNoProsthesis: '',
     usesAssistiveDevice: '', mentorNewAmputees: '', wantVeteranMentor: ''
   },

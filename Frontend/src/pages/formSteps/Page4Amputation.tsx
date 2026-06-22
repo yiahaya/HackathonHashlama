@@ -68,22 +68,88 @@ export const Page4Amputation: React.FC<Props> = ({ data, updateData, onNext, onB
         onChange={(val) => handleUpdate('amputationType', val)}
       />
 
-      {(d.amputationType.includes('Hand') || d.amputationType.includes('Leg')) && (
-        <CheckboxGroup
-          label={d.amputationType.includes('Hand') && d.amputationType.includes('Leg') ? 'איזה יד/רגל קטועה?' : d.amputationType.includes('Hand') ? 'איזה יד קטועה?' : 'איזה רגל קטועה?'}
-          options={[{ label: 'ימין', value: 'Right' }, { label: 'שמאל', value: 'Left' }, { label: 'דו צדדי', value: 'Both' }]}
-          values={d.whichLimb}
-          onChange={(val) => handleUpdate('whichLimb', val)}
-        />
+      {d.amputationType.includes('Hand') && (
+        <div className="flex flex-col gap-6 p-6 bg-[#FCF9F4] rounded-2xl border border-[#DBC2B2]">
+          <h3 className="text-xl font-bold text-brand-primary text-right">פרטי קטיעת יד</h3>
+          <CheckboxGroup
+            label="איזה יד קטועה?"
+            options={[{ label: 'ימין', value: 'Right' }, { label: 'שמאל', value: 'Left' }]}
+            values={d.whichHand || []}
+            onChange={(val) => handleUpdate('whichHand', val)}
+          />
+
+          {(d.whichHand || []).includes('Right') && (
+            <SelectInput
+              label="גובה קטיעה (יד ימין)"
+              options={[
+                { label: 'אצבעות', value: 'Fingers' },
+                { label: 'כף יד', value: 'Palm' },
+                { label: 'מתחת למרפק', value: 'Below Elbow' },
+                { label: 'מעל המרפק', value: 'Above Elbow' },
+                { label: 'עד הכתף', value: 'Up to Shoulder' }
+              ]}
+              value={d.handRightLevel || ''}
+              onChange={(e) => handleUpdate('handRightLevel', e.target.value)}
+            />
+          )}
+
+          {(d.whichHand || []).includes('Left') && (
+            <SelectInput
+              label="גובה קטיעה (יד שמאל)"
+              options={[
+                { label: 'אצבעות', value: 'Fingers' },
+                { label: 'כף יד', value: 'Palm' },
+                { label: 'מתחת למרפק', value: 'Below Elbow' },
+                { label: 'מעל המרפק', value: 'Above Elbow' },
+                { label: 'עד הכתף', value: 'Up to Shoulder' }
+              ]}
+              value={d.handLeftLevel || ''}
+              onChange={(e) => handleUpdate('handLeftLevel', e.target.value)}
+            />
+          )}
+        </div>
       )}
 
       {d.amputationType.includes('Leg') && (
-        <CheckboxGroup
-          label="גובה קטיעה (רגל)"
-          options={[{ label: 'מעל הברך', value: 'Above Knee' }, { label: 'מתחת לברך', value: 'Below Knee' }, { label: 'כף רגל', value: 'Foot' }]}
-          values={d.amputationLevel}
-          onChange={(val) => handleUpdate('amputationLevel', val)}
-        />
+        <div className="flex flex-col gap-6 p-6 bg-[#FCF9F4] rounded-2xl border border-[#DBC2B2]">
+          <h3 className="text-xl font-bold text-brand-primary text-right">פרטי קטיעת רגל</h3>
+          <CheckboxGroup
+            label="איזה רגל קטועה?"
+            options={[{ label: 'ימין', value: 'Right' }, { label: 'שמאל', value: 'Left' }]}
+            values={d.whichLeg || []}
+            onChange={(val) => handleUpdate('whichLeg', val)}
+          />
+
+          {(d.whichLeg || []).includes('Right') && (
+            <SelectInput
+              label="גובה קטיעה (רגל ימין)"
+              options={[
+                { label: 'כף רגל', value: 'Foot' },
+                { label: 'מתחת לברך', value: 'Below Knee' },
+                { label: 'דרך הברך', value: 'Through Knee' },
+                { label: 'מעל הברך', value: 'Above Knee' },
+                { label: 'אגן', value: 'Pelvis' }
+              ]}
+              value={d.legRightLevel || ''}
+              onChange={(e) => handleUpdate('legRightLevel', e.target.value)}
+            />
+          )}
+
+          {(d.whichLeg || []).includes('Left') && (
+            <SelectInput
+              label="גובה קטיעה (רגל שמאל)"
+              options={[
+                { label: 'כף רגל', value: 'Foot' },
+                { label: 'מתחת לברך', value: 'Below Knee' },
+                { label: 'דרך הברך', value: 'Through Knee' },
+                { label: 'מעל הברך', value: 'Above Knee' },
+                { label: 'אגן', value: 'Pelvis' }
+              ]}
+              value={d.legLeftLevel || ''}
+              onChange={(e) => handleUpdate('legLeftLevel', e.target.value)}
+            />
+          )}
+        </div>
       )}
 
       <SelectInput 
