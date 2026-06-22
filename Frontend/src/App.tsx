@@ -3,10 +3,12 @@ import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { FormWizard } from './pages/FormWizard'
 import { Contact } from './pages/Contact';
+import { Dashboard } from './pages/Dashboard';
 
 function App() {
   // Simple state-based routing for now
-  const [currentRoute, setCurrentRoute] = useState<'home' | 'login' | 'form' | 'contact'>('home');
+  const [currentRoute, setCurrentRoute] = useState<'home' | 'login' | 'form' | 'contact' | 'dashboard'>('home');
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   return (
     <>
@@ -32,16 +34,23 @@ function App() {
         </button>
         <button 
           onClick={() => setCurrentRoute('contact')}
-          className={`px-3 py-1 rounded text-sm ${currentRoute === 'contact' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
+          className={`mr-2 px-3 py-1 rounded text-sm ${currentRoute === 'contact' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
         >
           Contact
         </button>
+        <button 
+          onClick={() => setCurrentRoute('dashboard')}
+          className={`px-3 py-1 rounded text-sm ${currentRoute === 'dashboard' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
+        >
+          Dashboard
+        </button>
       </div>
 
-      {currentRoute === 'home' && <Home onNavigate={setCurrentRoute} />}
-      {currentRoute === 'login' && <Login />}
-      {currentRoute === 'form' && <FormWizard />}
-      {currentRoute === 'contact' && <Contact onNavigate={setCurrentRoute} />}
+      {currentRoute === 'home' && <Home onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
+      {currentRoute === 'login' && <Login onLogin={() => { setIsLoggedIn(true); setCurrentRoute('dashboard'); }} />}
+      {currentRoute === 'form' && <FormWizard onNavigate={setCurrentRoute} />}
+      {currentRoute === 'contact' && <Contact onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
+      {currentRoute === 'dashboard' && <Dashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
     </>
   );
 }

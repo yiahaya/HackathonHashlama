@@ -3,10 +3,11 @@ import { TopNavBar } from '../components/TopNavBar';
 import { Button } from '../components/Button';
 
 interface ContactProps {
-  onNavigate: (route: 'home' | 'login' | 'form' | 'contact') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
+  isLoggedIn?: boolean;
 }
 
-export const Contact: React.FC<ContactProps> = ({ onNavigate }) => {
+export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [description, setDescription] = useState('');
@@ -38,7 +39,7 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate }) => {
 
   return (
     <div className="min-h-screen bg-brand-bgLight">
-      <TopNavBar />
+      <TopNavBar onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
       
       <main className="pt-32 pb-16 px-6 flex justify-center items-center">
         <div className="w-full max-w-[700px] flex flex-col gap-10">

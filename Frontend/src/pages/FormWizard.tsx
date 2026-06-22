@@ -9,7 +9,11 @@ import { Page5Prosthesis } from './formSteps/Page5Prosthesis';
 import { Page6General } from './formSteps/Page6General';
 import { Page7Success } from './formSteps/Page7Success';
 
-export const FormWizard: React.FC = () => {
+interface FormWizardProps {
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
+}
+
+export const FormWizard: React.FC<FormWizardProps> = ({ onNavigate }) => {
   const [data, setData] = useState<FormData>(initialFormData);
   const [currentPage, setCurrentPage] = useState<number>(1);
 
@@ -32,7 +36,7 @@ export const FormWizard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-brand-bgLight pb-20">
-      <TopNavBar />
+      <TopNavBar onNavigate={onNavigate} isLoggedIn={false} />
       <div className="max-w-3xl mx-auto pt-24 px-6">
         <div className="bg-white rounded-[32px] p-8 md:p-12 shadow-xl border border-brand-primary/10">
           

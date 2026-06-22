@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { Button } from './Button';
 import { login } from '../services/api';
 
-export const LoginForm: React.FC = () => {
+interface LoginFormProps {
+  onLogin?: () => void;
+}
+
+export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +21,7 @@ export const LoginForm: React.FC = () => {
       const result = await login(email, password);
       if (result.success) {
         alert('התחברת בהצלחה!');
-        // Redirect to dashboard logic here
+        onLogin?.();
       } else {
         setError('שם משתמש או סיסמה שגויים');
       }
@@ -53,7 +57,7 @@ export const LoginForm: React.FC = () => {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className="border border-gray-300 rounded-lg px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors"
-            placeholder="example@mail.com"
+            placeholder="test@test.com"
             dir="ltr"
           />
         </div>
@@ -69,7 +73,7 @@ export const LoginForm: React.FC = () => {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             className="border border-gray-300 rounded-lg px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors"
-            placeholder="********"
+            placeholder="password123"
             dir="ltr"
           />
         </div>
