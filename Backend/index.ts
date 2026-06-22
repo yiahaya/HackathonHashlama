@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { pool } from './db';
 import { initDb } from './initDb';
+import { RegistrationPayload } from './types';
 
 dotenv.config();
 
@@ -17,46 +18,60 @@ app.get('/', (req: Request, res: Response) => {
   res.send('Hello from the Express TypeScript Backend!');
 });
 
-interface CreateUserRequest {
-  username?: string;
-  password?: string;
-  age?: number;
-  phone_number?: string;
-}
-
-app.post('/users', async (req: Request<{}, {}, CreateUserRequest>, res: Response): Promise<void> => {
+app.post('/registrations', async (req: Request<{}, {}, RegistrationPayload>, res: Response): Promise<void> => {
   try {
-    const { username, password, age, phone_number } = req.body;
+    const {
+      userType,
+      email,
+      amputeeDetails,
+      familyMemberDetails,
+      amputationDescription,
+      prosthesisUsage,
+      generalQuestions,
+      metadata
+    } = req.body;
 
-    if (!username || !password) {
-      res.status(400).json({ error: 'Username and password are required' });
+    if (!userType || !email) {
+      res.status(400).json({ error: 'userType and email are required' });
       return;
     }
 
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
     const query = `
-      INSERT INTO users (username, password, age, phone_number)
-      VALUES ($1, $2, $3, $4)
-      RETURNING id, username, age, phone_number
+      INSERT INTO registrations (
+        user_type, 
+        email, 
+        amputee_details, 
+        family_member_details, 
+        amputation_description, 
+        prosthesis_usage, 
+        general_questions, 
+        metadata
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
     `;
-    const values = [username, hashedPassword, age || null, phone_number || null];
+
+    const values = [
+      userType,
+      email,
+      amputeeDetails || null,
+      familyMemberDetails || null,
+      amputationDescription || null,
+      prosthesisUsage || null,
+      generalQuestions || null,
+      metadata || null
+    ];
 
     const result = await pool.query(query, values);
-    const newUser = result.rows[0];
+    const newRegistration = result.rows[0];
 
     res.status(201).json({
-      message: 'User created successfully',
-      user: newUser,
+      message: 'Registration created successfully',
+      registration: newRegistration,
     });
   } catch (error: any) {
-    console.error('Error creating user:', error);
-    if (error.code === '23505') {
-      res.status(409).json({ error: 'Username already exists' });
-    } else {
-      res.status(500).json({ error: 'Internal server error' });
-    }
+    console.error('Error creating registration:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 
