@@ -4,7 +4,7 @@ import { TextInput } from './form/TextInput';
 import { login } from '../services/api';
 
 interface LoginFormProps {
-  onLogin?: () => void;
+  onLogin?: (userId: string) => void;
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
@@ -20,11 +20,11 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
 
     try {
       const result = await login(email, password);
-      if (result.success) {
+      if (result.success && result.user_id) {
         alert('התחברת בהצלחה!');
-        onLogin?.();
+        onLogin?.(result.user_id);
       } else {
-        setError('שם משתמש או סיסמה שגויים');
+        setError(result.error || 'שם משתמש או סיסמה שגויים');
       }
     } catch (err) {
       setError('אירעה שגיאה. אנא נסה שוב.');

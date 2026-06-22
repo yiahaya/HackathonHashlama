@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Home } from './pages/Home';
 import { Login } from './pages/Login';
 import { FormWizard } from './pages/FormWizard'
@@ -7,9 +7,31 @@ import { Dashboard } from './pages/Dashboard';
 import { VoiceAssistant } from './components/VoiceAssistant';
 
 function App() {
-  // Simple state-based routing for now
   const [currentRoute, setCurrentRoute] = useState<'home' | 'login' | 'form' | 'contact' | 'dashboard'>('home');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const storedUserId = localStorage.getItem('userId');
+    if (storedUserId) {
+      setUserId(storedUserId);
+      setIsLoggedIn(true);
+    }
+  }, []);
+
+  const handleLoginSuccess = (id: string) => {
+    setUserId(id);
+    setIsLoggedIn(true);
+    localStorage.setItem('userId', id);
+    setCurrentRoute('dashboard');
+  };
+
+  const handleLogout = () => {
+    setUserId(null);
+    setIsLoggedIn(false);
+    localStorage.removeItem('userId');
+    setCurrentRoute('home');
+  };
 
   return (
     <>
@@ -45,13 +67,21 @@ function App() {
         >
           Dashboard
         </button>
+        {isLoggedIn && (
+          <button 
+            onClick={handleLogout}
+            className={`ml-2 px-3 py-1 rounded text-sm bg-red-500 text-white`}
+          >
+            Logout
+          </button>
+        )}
       </div>
 
       {currentRoute === 'home' && <Home onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
-      {currentRoute === 'login' && <Login onLogin={() => { setIsLoggedIn(true); setCurrentRoute('dashboard'); }} />}
-      {currentRoute === 'form' && <FormWizard onNavigate={setCurrentRoute} />}
+      {currentRoute === 'login' && <Login onLogin={handleLoginSuccess} />}
+      {currentRoute === 'form' && <FormWizard onNavigate={setCurrentRoute} onLoginSuccess={handleLoginSuccess} />}
       {currentRoute === 'contact' && <Contact onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
-      {currentRoute === 'dashboard' && <Dashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
+      {currentRoute === 'dashboard' && <Dashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} userId={userId} />}
 
       <VoiceAssistant onNavigate={setCurrentRoute} />
     </>

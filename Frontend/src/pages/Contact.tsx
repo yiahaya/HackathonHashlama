@@ -38,7 +38,7 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
 
   const handleCloseModal = () => {
     setShowModal(false);
-    onNavigate('home');
+    onNavigate?.('home');
   };
 
   return (

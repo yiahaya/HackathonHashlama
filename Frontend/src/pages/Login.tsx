@@ -3,7 +3,7 @@ import { LoginForm } from '../components/LoginForm';
 import { TopNavBar } from '../components/TopNavBar';
 
 interface LoginProps {
-  onLogin?: () => void;
+  onLogin?: (userId: string) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {

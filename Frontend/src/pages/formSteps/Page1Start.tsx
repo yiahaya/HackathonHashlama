@@ -11,30 +11,17 @@ interface Props {
 }
 
 export const Page1Start: React.FC<Props> = ({ data, updateData, onNext }) => {
-  const [email, setEmail] = React.useState('');
-  
   const handleNext = () => {
-    if (!email || !data.userType) {
-      alert('אנא מלא את כל השדות');
+    if (!data.userType) {
+      alert('אנא בחר/י אפשרות כדי להמשיך');
       return;
     }
-    // Storing email in parent details or a general root field could be done here if added to type
     onNext(data.userType);
   };
 
   return (
     <div className="flex flex-col gap-8">
       <h2 className="text-2xl font-bold text-brand-primary text-center mb-4">בואו נצא לדרך</h2>
-      
-      <TextInput 
-        label="דואר אלקטרוני" 
-        type="email" 
-        placeholder="example@mail.com" 
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        dir="ltr"
-      />
-
       <RadioGroup
         label="אני:"
         options={[
