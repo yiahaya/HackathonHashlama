@@ -6,6 +6,7 @@ import { pool } from './db';
 import { initDb } from './initDb';
 import { evaluate, evaluateUi, uiFromMatchOut } from './engine';
 import type { EvaluateOut } from './engine';
+import { startScheduler } from './scheduler';
 
 dotenv.config();
 
@@ -439,7 +440,63 @@ async function bulkUpsertUserRights(userId: string, rightIds: number[], status: 
   return result.rows;
 }
 
+// POST /users/:userId/prosthesis-schedule — Schedules an email reminder
+// for prosthesis eligibility (3 years minus 2 months from receipt date).
+app.post('/users/:userId/prosthesis-schedule', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { receiptDate, info } = req.body;
+    const { userId } = req.params;
+
+    if (!receiptDate || !info) {
+      res.status(400).json({ error: 'receiptDate and info are required' });
+      return;
+    }
+
+    // 1. Check if the user exists
+    const result = await pool.query(
+      'SELECT email FROM registrations WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // 2. Calculate the date: 3 years minus 2 months from receiptDate
+    const dateObj = new Date(receiptDate);
+    if (isNaN(dateObj.getTime())) {
+      res.status(400).json({ error: 'Invalid receiptDate format' });
+      return;
+    }
+
+    dateObj.setFullYear(dateObj.getFullYear() + 3);
+    dateObj.setMonth(dateObj.getMonth() - 2);
+
+    // 3. Save the schedule to the database
+    await pool.query(
+      `INSERT INTO prosthesis_schedules (user_id, info, next_email_date)
+       VALUES ($1, $2, $3)`,
+      [userId, info, dateObj.toISOString()]
+    );
+
+    res.status(200).json({
+      message: 'Email reminder scheduled successfully in the database',
+      scheduled_date: dateObj.toISOString(),
+      prosthesis_info: info
+    });
+  } catch (error: any) {
+    console.error('Error scheduling prosthesis reminder:', error);
+    if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
 initDb().then(() => {
+  startScheduler();
   app.listen(port, () => {
     console.log(`Backend server is running on http://localhost:${port}`);
   });

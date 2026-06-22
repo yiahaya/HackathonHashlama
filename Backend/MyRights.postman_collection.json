@@ -326,6 +326,24 @@
         "description": "Stop tracking a right for a user. 204 on success, 404 if the (user, right) pair was not tracked."
       },
       "response": []
+    },
+    {
+      "name": "Schedule Prosthesis Reminder",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"receiptDate\": \"2023-08-01\",\n  \"info\": \"פרוטזה רגל ימין מעל הברך\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/prosthesis-schedule",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "prosthesis-schedule"]
+        },
+        "description": "Schedules an email reminder for a prosthesis. Body: { receiptDate: string, info: string }. The next email date is calculated as receiptDate + 3 years - 2 months, and inserted into the database. A daily cron job will pick this up and send real emails."
+      },
+      "response": []
     }
   ]
 }

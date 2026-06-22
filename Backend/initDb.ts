@@ -170,6 +170,14 @@ export async function initDb() {
         UNIQUE (user_id, right_id)
     );
     CREATE INDEX IF NOT EXISTS user_rights_user_id_idx ON user_rights(user_id);
+
+    CREATE TABLE IF NOT EXISTS prosthesis_schedules (
+        id              SERIAL PRIMARY KEY,
+        user_id         UUID NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
+        info            TEXT NOT NULL,
+        next_email_date TIMESTAMPTZ NOT NULL,
+        created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
   `;
 
   try {
