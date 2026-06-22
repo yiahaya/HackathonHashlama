@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '../../components/Button';
 import { TextInput } from '../../components/form/TextInput';
+import { TextAreaInput } from '../../components/form/TextAreaInput';
 import { SelectInput } from '../../components/form/SelectInput';
 import { RadioGroup } from '../../components/form/RadioGroup';
 import { CheckboxGroup } from '../../components/form/CheckboxGroup';
@@ -39,15 +40,11 @@ export const Page4Amputation: React.FC<Props> = ({ data, updateData, onNext, onB
         onChange={(e) => handleUpdate('reason', e.target.value)}
       />
 
-      <div className="flex flex-col gap-2">
-        <label className="text-right text-sm font-medium text-brand-textDark">נשמח שתפרט בקצרה על נסיבות הקטיעה</label>
-        <textarea 
-          className="border border-gray-300 rounded-lg px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors min-h-[100px]"
-          dir="rtl"
-          value={d.circumstances}
-          onChange={(e) => handleUpdate('circumstances', e.target.value)}
-        />
-      </div>
+      <TextAreaInput
+        label="נשמח שתפרט בקצרה על נסיבות הקטיעה"
+        value={d.circumstances}
+        onChange={(e) => handleUpdate('circumstances', e.target.value)}
+      />
 
       <SelectInput 
         label="גורם מבטח"
@@ -164,15 +161,11 @@ export const Page4Amputation: React.FC<Props> = ({ data, updateData, onNext, onB
         onChange={(e) => handleUpdate('dailyActivityLevel', e.target.value)}
       />
 
-      <div className="flex flex-col gap-2">
-        <label className="text-right text-sm font-medium text-brand-textDark">נשמח לשמוע על פעילותך היומיומית</label>
-        <textarea 
-          className="border border-gray-300 rounded-lg px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors min-h-[100px]"
-          dir="rtl"
-          value={d.dailyActivityDescription}
-          onChange={(e) => handleUpdate('dailyActivityDescription', e.target.value)}
-        />
-      </div>
+      <TextAreaInput
+        label="נשמח לשמוע על פעילותך היומיומית"
+        value={d.dailyActivityDescription}
+        onChange={(e) => handleUpdate('dailyActivityDescription', e.target.value)}
+      />
 
       <SelectInput 
         label="האם את/ה מסתייע בתותבת?"

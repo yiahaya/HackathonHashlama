@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { SpeechControls } from './SpeechControls';
 
-interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+interface TextAreaInputProps extends Omit<React.TextareaHTMLAttributes<HTMLTextAreaElement>, 'onChange'> {
   label: string;
-  onChange?: (e: React.ChangeEvent<HTMLInputElement> | { target: { value: string } }) => void;
+  onChange?: (e: React.ChangeEvent<HTMLTextAreaElement> | { target: { value: string } }) => void;
 }
 
-export const TextInput: React.FC<TextInputProps> = ({ label, onChange, value, ...props }) => {
+export const TextAreaInput: React.FC<TextAreaInputProps> = ({ label, onChange, value, ...props }) => {
   const [isDictating, setIsDictating] = useState(false);
 
   const handleDictate = (text: string) => {
@@ -24,11 +24,11 @@ export const TextInput: React.FC<TextInputProps> = ({ label, onChange, value, ..
         {label}
       </label>
       <div className="relative w-full">
-        <input
+        <textarea
           {...props}
           value={value}
           onChange={onChange as any}
-          className={`w-full border border-gray-300 rounded-lg pr-4 pl-24 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors ${props.className || ''}`}
+          className={`w-full border border-gray-300 rounded-lg pr-4 pl-24 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors min-h-[100px] ${props.className || ''}`}
           dir="rtl"
         />
         <SpeechControls 

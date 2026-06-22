@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { TopNavBar } from '../components/TopNavBar';
 import { Button } from '../components/Button';
+import { SpeechControls } from '../components/form/SpeechControls';
 
 interface ContactProps {
   onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
@@ -12,6 +13,9 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
   const [email, setEmail] = useState('');
   const [description, setDescription] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [isDictatingPhone, setIsDictatingPhone] = useState(false);
+  const [isDictatingEmail, setIsDictatingEmail] = useState(false);
+  const [isDictatingDesc, setIsDictatingDesc] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,38 +67,62 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-right text-sm font-semibold text-[#1C1C19]">מספר טלפון</label>
-                  <input 
-                    type="tel"
-                    dir="ltr"
-                    placeholder="050-0000000"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    className="border border-[#DBC2B2] rounded-xl px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-[#554337] placeholder:text-[#554337]/40"
-                  />
+                  <div className="relative w-full">
+                    <input 
+                      type="tel"
+                      dir="ltr"
+                      placeholder="050-0000000"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full border border-[#DBC2B2] rounded-xl pr-4 pl-24 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-[#554337] placeholder:text-[#554337]/40"
+                    />
+                    <SpeechControls 
+                      textToSpeak={`מספר טלפון. ${phone}`}
+                      onDictate={(t) => setPhone(phone ? phone + ' ' + t : t)}
+                      isDictating={isDictatingPhone}
+                      setIsDictating={setIsDictatingPhone}
+                    />
+                  </div>
                 </div>
                 
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-right text-sm font-semibold text-[#1C1C19]">מייל</label>
-                  <input 
-                    type="email"
-                    dir="ltr"
-                    placeholder="example@mail.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="border border-[#DBC2B2] rounded-xl px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-[#554337] placeholder:text-[#554337]/40"
-                  />
+                  <div className="relative w-full">
+                    <input 
+                      type="email"
+                      dir="ltr"
+                      placeholder="example@mail.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full border border-[#DBC2B2] rounded-xl pr-4 pl-24 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-[#554337] placeholder:text-[#554337]/40"
+                    />
+                    <SpeechControls 
+                      textToSpeak={`מייל. ${email}`}
+                      onDictate={(t) => setEmail(email ? email + ' ' + t : t)}
+                      isDictating={isDictatingEmail}
+                      setIsDictating={setIsDictatingEmail}
+                    />
+                  </div>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
                 <label className="text-right text-sm font-semibold text-[#1C1C19]">תיאור הפנייה</label>
-                <textarea 
-                  dir="rtl"
-                  placeholder="איך נוכל לעזור?"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="border border-[#DBC2B2] rounded-xl px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 min-h-[170px] text-[#554337] placeholder:text-[#554337]/40 resize-none"
-                />
+                <div className="relative w-full">
+                  <textarea 
+                    dir="rtl"
+                    placeholder="איך נוכל לעזור?"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    className="w-full border border-[#DBC2B2] rounded-xl pr-4 pl-24 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 min-h-[170px] text-[#554337] placeholder:text-[#554337]/40 resize-none"
+                  />
+                  <SpeechControls 
+                    textToSpeak={`תיאור הפנייה. ${description}`}
+                    onDictate={(t) => setDescription(description ? description + ' ' + t : t)}
+                    isDictating={isDictatingDesc}
+                    setIsDictating={setIsDictatingDesc}
+                  />
+                </div>
               </div>
 
               <div className="flex justify-center mt-4">

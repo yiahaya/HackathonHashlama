@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '../../components/Button';
 import { TextInput } from '../../components/form/TextInput';
+import { TextAreaInput } from '../../components/form/TextAreaInput';
 import { SelectInput } from '../../components/form/SelectInput';
 import { CheckboxGroup } from '../../components/form/CheckboxGroup';
 import type { FormData } from '../../types/form';
@@ -81,15 +82,11 @@ export const Page6General: React.FC<Props> = ({ data, updateData, onSubmit, onBa
         onChange={(val) => handleUpdate('experienceField', val)}
       />
 
-      <div className="flex flex-col gap-2">
-        <label className="text-right text-sm font-medium text-brand-textDark">פרט/י על הניסיון התעסוקתי שלך ...</label>
-        <textarea 
-          className="border border-gray-300 rounded-lg px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors min-h-[100px]"
-          dir="rtl"
-          value={d.experienceDetails}
-          onChange={(e) => handleUpdate('experienceDetails', e.target.value)}
-        />
-      </div>
+      <TextAreaInput
+        label="פרט/י על הניסיון התעסוקתי שלך היום או בעבר?"
+        value={d.experienceDetails}
+        onChange={(e) => handleUpdate('experienceDetails', e.target.value)}
+      />
 
       <SelectInput 
         label="האם היום הינך עובד/ת במשרה קבועה?"

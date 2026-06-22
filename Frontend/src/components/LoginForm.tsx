@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
+import { TextInput } from './form/TextInput';
 import { login } from '../services/api';
 
 interface LoginFormProps {
@@ -46,37 +47,27 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
           </div>
         )}
         
-        <div className="flex flex-col gap-2">
-          <label className="text-right text-sm font-medium text-brand-textDark" htmlFor="email">
-            דואר אלקטרוני
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors"
-            placeholder="test@test.com"
-            dir="ltr"
-          />
-        </div>
+        <TextInput
+          label="דואר אלקטרוני"
+          id="email"
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="test@test.com"
+          dir="ltr"
+        />
 
-        <div className="flex flex-col gap-2">
-          <label className="text-right text-sm font-medium text-brand-textDark" htmlFor="password">
-            סיסמה
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border border-gray-300 rounded-lg px-4 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition-colors"
-            placeholder="password123"
-            dir="ltr"
-          />
-        </div>
+        <TextInput
+          label="סיסמה"
+          id="password"
+          type="password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="password123"
+          dir="ltr"
+        />
 
         <div className="text-right mt-[-8px]">
           <a href="#" className="text-sm text-brand-primary hover:underline">
