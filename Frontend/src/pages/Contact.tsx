@@ -48,6 +48,8 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
             <h2 className="text-3xl font-bold text-brand-primary">פנייה למנהלי העמותה</h2>
             <p className="text-lg text-brand-textDark">
               נשמח לעזור בכל שאלה או בקשה. מלאו את הפרטים ונחזור אליכם בהקדם.
+              <br />
+              או בטלפון: <a href="tel:1-700-554-700" className="font-bold text-brand-primary hover:underline" dir="ltr">1-700-554-700</a>
             </p>
           </div>
 
