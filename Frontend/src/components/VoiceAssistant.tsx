@@ -5,10 +5,37 @@ interface VoiceAssistantProps {
 }
 
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) => {
-  const [isListening, setIsListening] = useState(false);
+  const [isListening, setIsListening] = useState(true); // Always listen for wake word
+  const [isAwake, setIsAwake] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const sleepTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const restartRecognition = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch (e) {}
+    }
+  };
+
+  const goToSleep = () => {
+    setIsAwake(false);
+    setCurrentTranscript('');
+    restartRecognition();
+  };
+
+  const wakeUp = () => {
+    setIsAwake(true);
+    resetSleepTimeout();
+    restartRecognition();
+  };
+
+  const resetSleepTimeout = () => {
+    if (sleepTimeoutRef.current) clearTimeout(sleepTimeoutRef.current);
+    sleepTimeoutRef.current = setTimeout(goToSleep, 3000); // Go to sleep after 15 seconds of inactivity
+  };
 
   useEffect(() => {
     // @ts-ignore
@@ -33,37 +60,49 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) =>
       }
 
       const text = finalTranscript || interimTranscript;
-      setCurrentTranscript(text.trim());
+      const lowerText = text.toLowerCase();
 
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      if (text.trim()) {
-        timeoutRef.current = setTimeout(() => {
-          const result = handleCommand(text.trim());
-          if (result === true) {
-            setCurrentTranscript('');
-            setIsListening(false);
-          } else if (result === false) {
-            setCurrentTranscript('הפקודה לא קיימת, תנסה "עזרה"');
-            setTimeout(() => {
-              setCurrentTranscript('');
-              setIsListening(false);
-            }, 3000);
-          } else if (typeof result === 'string') {
-            setCurrentTranscript(result);
-            setTimeout(() => {
-              setCurrentTranscript('');
-              setIsListening(false);
-            }, 5000);
+      // Check for wake word if not awake
+      setIsAwake((currentlyAwake) => {
+        if (!currentlyAwake) {
+          if (lowerText.includes('שלום צחי')) {
+            resetSleepTimeout();
+            
+            const command = lowerText.split('שלום צחי')[1]?.trim();
+            if (command) {
+              setCurrentTranscript(command);
+              if (timeoutRef.current) clearTimeout(timeoutRef.current);
+              timeoutRef.current = setTimeout(() => {
+                processCommand(command);
+              }, 1500);
+            } else {
+              setCurrentTranscript('כן, אני מקשיב...');
+              restartRecognition(); // Flush the wake word so it doesn't leak into the next command
+            }
+            return true; // Set isAwake to true
           }
-        }, 1500);
-      }
+          return false; // Remain asleep
+        } else {
+          // If already awake
+          resetSleepTimeout();
+          setCurrentTranscript(text.trim());
+
+          if (timeoutRef.current) {
+            clearTimeout(timeoutRef.current);
+          }
+
+          if (text.trim()) {
+            timeoutRef.current = setTimeout(() => {
+              processCommand(text.trim());
+            }, 1500);
+          }
+          return true;
+        }
+      });
     };
 
     recognition.onend = () => {
-      // If we are still supposed to be listening, restart it
+      // Always restart listening if it ends
       if (isListening) {
         try {
           recognition.start();
@@ -83,7 +122,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) =>
         recognitionRef.current.stop();
       }
     };
-  }, []); // Run once on mount
+  }, [isListening]); // Re-run if isListening changes (even though we keep it true)
 
   useEffect(() => {
     if (isListening && recognitionRef.current) {
@@ -94,6 +133,25 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) =>
       recognitionRef.current.stop();
     }
   }, [isListening]);
+
+  const processCommand = (text: string) => {
+    const result = handleCommand(text);
+    if (result === true) {
+      setCurrentTranscript('');
+      restartRecognition(); // Clear the buffer after successful command execution
+    } else if (result === false) {
+      setCurrentTranscript('הפקודה לא קיימת, תנסה "עזרה"');
+      setTimeout(() => {
+        setCurrentTranscript((prev) => prev === 'הפקודה לא קיימת, תנסה "עזרה"' ? '' : prev);
+      }, 3000);
+    } else if (typeof result === 'string') {
+      setCurrentTranscript(result);
+      restartRecognition(); // Clear the buffer after successful help command
+      setTimeout(() => {
+        setCurrentTranscript((prev) => prev === result ? '' : prev);
+      }, 5000);
+    }
+  };
 
   const handleCommand = (text: string): boolean | string => {
     console.log("Voice Command Received:", text);
@@ -224,9 +282,17 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) =>
   return (
     <div className="fixed bottom-24 right-6 z-[9999] flex items-center gap-4" dir="rtl">
       <button
-        onClick={() => setIsListening(!isListening)}
-        className={`w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 border-4 border-white shrink-0 ${isListening ? 'bg-red-500 animate-pulse scale-110' : 'bg-brand-primary hover:bg-brand-primary/90'}`}
-        title={isListening ? "הפסק עוזר קולי" : "הפעל עוזר קולי"}
+        onClick={() => {
+          if (isAwake) {
+            goToSleep();
+          } else {
+            setIsListening(true);
+            wakeUp();
+            setCurrentTranscript('כן, אני מקשיב...');
+          }
+        }}
+        className={`w-16 h-16 rounded-full shadow-2xl flex items-center justify-center transition-all duration-300 border-4 border-white shrink-0 ${isAwake ? 'bg-red-500 animate-pulse scale-110' : 'bg-brand-primary hover:bg-brand-primary/90'}`}
+        title={isAwake ? "הפסק עוזר קולי" : "הפעל עוזר קולי"}
       >
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"></path>
@@ -236,7 +302,7 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) =>
         </svg>
       </button>
 
-      {currentTranscript && (
+      {currentTranscript && isAwake && (
         <div className="bg-white px-5 py-3 rounded-2xl shadow-xl border border-brand-primary/20 text-brand-textDark max-w-[280px] break-words text-base font-medium relative animate-in fade-in zoom-in duration-200 whitespace-pre-line leading-relaxed">
           {currentTranscript}
           <div className="absolute top-1/2 -right-2 w-4 h-4 bg-white border-t border-r border-brand-primary/20 transform -translate-y-1/2 rotate-45"></div>
@@ -245,3 +311,4 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) =>
     </div>
   );
 };
+

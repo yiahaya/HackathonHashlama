@@ -1,7 +1,6 @@
 import React from 'react';
 import { TopNavBar } from '../components/TopNavBar';
 import { HeroSection } from '../components/HeroSection';
-import { CTASection } from '../components/CTASection';
 import { Button } from '../components/Button';
 
 interface HomeProps {

@@ -3,7 +3,7 @@ import { LoginForm } from '../components/LoginForm';
 import { TopNavBar } from '../components/TopNavBar';
 
 interface LoginProps {
-  onLogin?: (result: { user_id: string | null; is_admin: boolean }) => void;
+  onLogin?: (result: { user_id: string; is_admin: boolean }) => void;
 }
 
 export const Login: React.FC<LoginProps> = ({ onLogin }) => {

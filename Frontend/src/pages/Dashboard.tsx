@@ -1,21 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TopNavBar } from '../components/TopNavBar';
 import { RightsCard } from '../components/dashboard/RightsCard';
 import { AIChatModal } from '../components/AIChatModal';
-import { mockRights, type RightItem, type RightStatus } from '../data/mockRights';
+import { type RightItem, type RightStatus } from '../data/mockRights';
+import { getUserEvaluation, getUserRights, updateRightStatus } from '../services/api';
 
 interface DashboardProps {
   onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
   isLoggedIn?: boolean;
+  userId?: string | null;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn }) => {
-  const [rights, setRights] = useState<RightItem[]>(mockRights);
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, userId }) => {
+  const [rights, setRights] = useState<RightItem[]>([]);
   const [activeTab, setActiveTab] = useState<RightStatus | 'all'>('all');
   const [isChatOpen, setIsChatOpen] = useState(false);
 
-  const handleStatusChange = (id: string, newStatus: RightStatus) => {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!userId) {
+        return;
+      }
+      
+      try {
+        const [evalRes, rightsRes] = await Promise.all([
+          getUserEvaluation(userId),
+          getUserRights(userId)
+        ]);
+
+        if (evalRes.success && rightsRes.success) {
+          const trackedMap = new Map(rightsRes.rights?.map((r: any) => [r.right_id, r.status]));
+          
+          const mergedRights: RightItem[] = evalRes.rights?.map((r: any) => ({
+            id: r.id.toString(),
+            title: r.title,
+            description: r.description,
+            matchPercentage: r.confidence,
+            status: trackedMap.get(r.id) || 'worth_checking',
+            steps: [
+              { step: 'הגשת בקשה ואיסוף מסמכים', done: false },
+              { step: 'המתנה לתשובת הגורם המטפל', done: false }
+            ]
+          })) || [];
+
+          // Add any tracked rights that weren't in the confident evaluation list
+          rightsRes.rights?.forEach((tracked: any) => {
+            if (!mergedRights.find(mr => mr.id === tracked.right_id.toString())) {
+              mergedRights.push({
+                id: tracked.right_id.toString(),
+                title: tracked.name_he,
+                description: 'זכות ששמרת למעקב',
+                status: tracked.status,
+                steps: [
+                  { step: 'הגשת בקשה ואיסוף מסמכים', done: false }
+                ]
+              });
+            }
+          });
+
+          setRights(mergedRights);
+        }
+      } catch (err) {
+        console.error('Error fetching dashboard data:', err);
+      }
+    };
+
+    fetchData();
+  }, [userId]);
+
+  const handleStatusChange = async (id: string, newStatus: RightStatus) => {
+    // Optimistic UI update
     setRights(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
+    
+    if (userId) {
+      const res = await updateRightStatus(userId, id, newStatus);
+      if (!res.success) {
+        // Handle error implicitly by reverting? Or just log.
+        console.error('Failed to update status:', res.error);
+      }
+    }
   };
 
   const handleStepToggle = (rightId: string, stepIndex: number) => {

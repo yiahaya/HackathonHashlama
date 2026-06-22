@@ -8,7 +8,7 @@ import type { FormData } from '../../types/form';
 
 interface Props {
   data: FormData;
-  updateData: (section: keyof FormData, fields: Partial<any>) => void;
+  updateData: (section: keyof FormData | 'email' | 'password', fields: any) => void;
   onSubmit: () => void;
   onBack: () => void;
 }
@@ -28,6 +28,25 @@ export const Page6General: React.FC<Props> = ({ data, updateData, onSubmit, onBa
         <p className="text-brand-textDark font-medium text-right text-sm">
           שאלות אלו הינן לשימוש פנימי בלבד...
         </p>
+      </div>
+
+      <div className="bg-brand-gray/20 p-4 rounded-xl flex flex-col gap-4 mb-4">
+        <h3 className="text-lg font-bold text-brand-primary text-right">פרטי התחברות (חובה)</h3>
+        <p className="text-sm text-brand-textDark text-right">אנא הכנס/י אימייל וסיסמה כדי שנוכל לשמור את הזכויות שלך ולהקים עבורך אזור אישי.</p>
+        <TextInput 
+          label="אימייל" 
+          type="email" 
+          dir="ltr" 
+          value={data.email || ''} 
+          onChange={(e) => updateData('email', e.target.value)} 
+        />
+        <TextInput 
+          label="סיסמה" 
+          type="password" 
+          dir="ltr" 
+          value={data.password || ''} 
+          onChange={(e) => updateData('password', e.target.value)} 
+        />
       </div>
 
       <SelectInput 

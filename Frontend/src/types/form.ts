@@ -5,6 +5,8 @@ export interface ChildDetails {
 
 export interface FormData {
   userType: 'Amputee' | 'Parent/Family Member' | '';
+  email?: string;
+  password?: string;
   
   amputeeDetails: {
     firstName: string;
@@ -83,6 +85,8 @@ export interface FormData {
 
 export const initialFormData: FormData = {
   userType: '',
+  email: '',
+  password: '',
   amputeeDetails: {
     firstName: '', lastName: '', birthDate: '', gender: '', mobileNumber: '',
     address: '', maritalStatus: '', selfDefinition: '', hasChildren: false, children: []
