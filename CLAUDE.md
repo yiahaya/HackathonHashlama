@@ -72,13 +72,19 @@ Run from within `Backend/` or `Frontend/`. `node_modules` is gitignored and not 
   - `explainer.ts` (deterministic Hebrew text), `serializer.ts` (DTO shape), `types.ts`.
 
 ### Routes (`index.ts`)
+Auth (POC — no tokens/sessions; `registrations` doubles as the credential store):
+- `POST /login` — body `{ email, password }` → `{ user_id }`: the id of a registration whose email +
+  (bcrypt) password match, or `null` on failure (`400` if either field is missing). `email` is not
+  unique, so it checks every row with that email and `bcrypt.compare`s.
+
 Evaluation + registration:
 - `POST /registrations` — store a questionnaire submission **and** evaluate it: persists the form +
   the engine results (`registrations.results` JSONB) and returns `{ id, evaluation }`. The shared
-  `insertRegistration(payload, evaluation)` helper does the insert.
-- `POST /registrations/full` — one-shot onboarding: store + evaluate **and** seed the confident
-  matches (`percentage > MIN_CONFIDENCE_PCT`, currently 55) into `user_rights` as `in_process` for
-  the new registration. Returns `{ id, created_at, evaluation, tracked_rights }`.
+  `insertRegistration(payload, evaluation)` helper does the insert and bcrypt-hashes `payload.password`.
+- `POST /registrations/full` — one-shot onboarding for the frontend: store + evaluate **and** seed the
+  confident matches (`percentage > MIN_CONFIDENCE_PCT`, currently 55) into `user_rights` as
+  `in_process` for the new registration. Responds with **only `{ user_id }`** (status `201`); the
+  frontend then fetches the rights via `GET /users/:userId/evaluation`.
 - `POST /evaluate` — stateless evaluation (no storage): questionnaire JSON → ranked rights. Returns
   `{ rights, meta }` (**no `profile`**) and only confident matches (`percentage > 55`). The contract
   for downstream consumers.
@@ -87,7 +93,12 @@ Evaluation + registration:
   confidence, source_url, steps[], missing_info[] }` (via `uiMatchOut()` in `serializer.ts`).
 - `GET /registrations/:id` — fetch a stored registration + its evaluation (`404` if the id is unknown).
 
-Per-user right tracking (`user_rights`; `user_id` is a **registration id**, FK → `registrations(id)`):
+Per-user routes (`user_id` is a **registration id**; tracking lives in `user_rights`, FK →
+`registrations(id)`):
+- `GET /users/:userId/evaluation` — the user's **stored** evaluation projected to the exact
+  `/evaluate/ui` shape (`uiFromMatchOut()` projects the persisted `registrations.results` rather than
+  re-running the engine, so it preserves any `overrides` applied at registration time). `404` if
+  unknown. Identical output to what `POST /registrations/full` evaluated for that user.
 - `POST /users/:userId/rights` — bulk upsert: body `{ right_ids: number[], status? }` (status
   defaults to `in_process`). One atomic statement, so an unknown right id fails the whole batch.
 - `PUT /users/:userId/rights/:rightId` — add/update the status for one (user, right) pair.
@@ -111,9 +122,9 @@ exposes the likelihood as **`percentage`** (0–100), **`band`** (`low`/`medium`
 The engine reads `rights`, `benefits`, `criteria`, `milestones`, `right_milestones` — created and
 seeded by `initDb()` (it imports a Kol-Zchut COPY dump, `Backend/kolzchut*.sql`). pgvector is
 created but the engine does not use the `embedding` column (semantic retrieval only). Milestone
-loading degrades gracefully if those tables are absent. `initDb()` also creates `registrations` and
-`user_rights` (the per-user right-status join table, `UNIQUE(user_id, right_id)`, status
-`CHECK`-constrained and nullable).
+loading degrades gracefully if those tables are absent. `initDb()` also creates `registrations`
+(includes a bcrypt `password` column for POC auth) and `user_rights` (the per-user right-status join
+table, `UNIQUE(user_id, right_id)`, status `CHECK`-constrained and nullable).
 
 ## Important caveats (current branch state)
 
@@ -122,12 +133,15 @@ These are real inconsistencies in the code as it stands — verify intent before
   restarts.** `registrations` was made non-destructive so `user_rights` can hold an FK to it across
   restarts; only the dead `users` table is still `DROP`ed each start. (The rights tables are seeded
   only when empty.) Because schema changes use `IF NOT EXISTS`, **altering a column requires a manual
-  migration or dropping the table** — `initDb()` will not pick up the change on its own.
-- **Orphaned `POST /users` (auth-style) route.** `POST /users` inserts into a `users` table that
-  `initDb()` drops and never recreates — that endpoint fails at runtime. It's leftover scaffold.
-  Note this is unrelated to the live `*/users/:userId/rights` tracking routes (those use `user_rights`
-  with `user_id` = a registration id). The live entry points are `POST /registrations`,
-  `POST /registrations/full`, and `POST /evaluate`.
+  migration or dropping the table** — `initDb()` will not pick up the change on its own. Follow the
+  existing pattern: an idempotent `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` in `initDb()` (e.g. the
+  `registrations.password` column).
+- **POC auth via `POST /login`, not the orphaned `POST /users` route.** Login matches the bcrypt
+  `password` stored on a `registrations` row (set via the registration payload's `password` field).
+  The separate `POST /users` route inserts into a `users` table that `initDb()` drops and never
+  recreates — it fails at runtime and is leftover scaffold. Also unrelated to the live
+  `*/users/:userId/...` routes (those use `user_rights`, `user_id` = a registration id). The live
+  entry points are `POST /login`, `POST /registrations`, `POST /registrations/full`, and `POST /evaluate`.
 
 ## TypeScript / toolchain notes
 
