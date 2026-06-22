@@ -8,7 +8,18 @@ import {
   MilestoneOut,
   RightMatch,
   RightMatchOut,
+  RightMatchUiOut,
 } from './types';
+
+// Trim, dedupe, and drop empties from a list of strings (preserves order).
+function uniqNonEmpty(items: string[]): string[] {
+  const out: string[] = [];
+  for (const s of items) {
+    const t = (s || '').trim();
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
 
 function benefitOut(b: Benefit): BenefitOut {
   return {
@@ -46,6 +57,21 @@ function descs(crits: Criterion[], limit = 5): string[] {
     if (out.length >= limit) break;
   }
   return out;
+}
+
+// Presentation-ready projection for the frontend: only what a UI shows.
+export function uiMatchOut(m: RightMatch): RightMatchUiOut {
+  const r = m.right;
+  return {
+    slug: r.slug,
+    title: r.nameHe,
+    description: r.descriptionHe,
+    confidence: m.percentage,
+    source_url: r.sourceUrl,
+    benefits: uniqNonEmpty(r.benefits.map((b) => b.descriptionHe)),
+    criteria: uniqNonEmpty(m.matched.map((c) => c.descriptionHe)),
+    missing_info: uniqNonEmpty(m.unknownRequired.map((c) => c.descriptionHe)),
+  };
 }
 
 export function matchOut(m: RightMatch): RightMatchOut {

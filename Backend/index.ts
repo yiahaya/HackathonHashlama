@@ -4,12 +4,15 @@ import bcrypt from 'bcrypt';
 import dotenv from 'dotenv';
 import { pool } from './db';
 import { initDb } from './initDb';
-import { evaluate } from './engine';
+import { evaluate, evaluateUi } from './engine';
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+// Eligibility results below this confidence (%) are not returned to clients.
+const MIN_CONFIDENCE_PCT = 55;
 
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
@@ -113,10 +116,27 @@ app.post('/registrations', async (req: Request, res: Response): Promise<void> =>
 // for downstream consumers (developer 2): questionnaire JSON -> ranked rights.
 app.post('/evaluate', async (req: Request, res: Response): Promise<void> => {
   try {
-    const evaluation = await evaluate(req.body || {});
-    res.status(200).json(evaluation);
+    const { rights, meta } = await evaluate(req.body || {});
+    // /evaluate omits the engine profile and returns only confident matches.
+    const filtered = rights.filter((r) => r.percentage > MIN_CONFIDENCE_PCT);
+    res.status(200).json({ rights: filtered, meta });
   } catch (error: any) {
     console.error('Error evaluating:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
+// POST /evaluate/ui — trimmed, presentation-ready evaluation for the frontend.
+// Same questionnaire input as /evaluate, but returns only the fields a UI renders
+// (title, description, confidence, benefits, criteria) plus the disclaimer, and
+// only confident matches.
+app.post('/evaluate/ui', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { rights, disclaimer } = await evaluateUi(req.body || {});
+    const filtered = rights.filter((r) => r.confidence > MIN_CONFIDENCE_PCT);
+    res.status(200).json({ rights: filtered, disclaimer });
+  } catch (error: any) {
+    console.error('Error evaluating for UI:', error);
     res.status(500).json({ error: 'Internal server error', detail: error.message });
   }
 });

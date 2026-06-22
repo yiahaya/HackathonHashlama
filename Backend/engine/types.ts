@@ -139,3 +139,22 @@ export interface EvaluateOut {
   rights: RightMatchOut[];
   meta: EvaluateMeta;
 }
+
+// --- Trimmed, presentation-ready DTO for the frontend (POST /evaluate/ui) ---
+// Only the fields a UI renders. No engine profile, no diagnostics.
+
+export interface RightMatchUiOut {
+  slug: string;             // stable key for list rendering
+  title: string;            // right name (Hebrew)
+  description: string;      // what the right is (not personalized)
+  confidence: number;       // 0..100
+  source_url: string | null; // official source / "learn more" link
+  benefits: string[];       // benefit descriptions
+  criteria: string[];       // descriptions of the criteria the person satisfies
+  missing_info: string[];   // required criteria still needed to confirm eligibility
+}
+
+export interface EvaluateUiOut {
+  rights: RightMatchUiOut[];
+  disclaimer: string;
+}

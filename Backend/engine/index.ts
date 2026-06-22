@@ -6,12 +6,12 @@
 // (scoring.scoreRight), attaches deterministic Hebrew text, and returns the
 // ranked rights + all their data. No sessions, no storage — data-in -> rights-out.
 
-import { EvaluateOut } from './types';
+import { EvaluateOut, EvaluateUiOut, EvaluateMeta, RightMatch, Profile } from './types';
 import { toProfile } from './intake';
 import { getRepository } from './repository';
 import { scoreRight } from './scoring';
 import { deterministic } from './explainer';
-import { matchOut } from './serializer';
+import { matchOut, uiMatchOut } from './serializer';
 
 // How many ranked rights to return at most (env-overridable, mirrors the Python
 // RESULTS_LIMIT default of 30).
@@ -24,7 +24,14 @@ const DISCLAIMER =
   'Information is based on a May 2024 snapshot of kol-zchut.org.il and is not ' +
   'legal advice. Verify current eligibility on the official site.';
 
-export async function evaluate(payload: Record<string, any>): Promise<EvaluateOut> {
+// Shared ranking pipeline: profile -> score every right -> sort -> top N with
+// deterministic Hebrew text. Both evaluate() and evaluateUi() build on this.
+async function rank(payload: Record<string, any>): Promise<{
+  profile: Profile;
+  missing: string[];
+  ranked: RightMatch[];
+  totalEvaluated: number;
+}> {
   const repo = await getRepository();
   const { profile, missing } = toProfile(payload);
 
@@ -34,16 +41,39 @@ export async function evaluate(payload: Record<string, any>): Promise<EvaluateOu
   const ranked = matches.slice(0, RESULTS_LIMIT);
   deterministic(ranked); // instant Hebrew text, no LLM call
 
+  return { profile, missing, ranked, totalEvaluated: matches.length };
+}
+
+function buildMeta(
+  payload: Record<string, any>,
+  missing: string[],
+  totalEvaluated: number
+): EvaluateMeta {
+  return {
+    total_evaluated: totalEvaluated,
+    missing_inputs: missing,
+    disclaimer: DISCLAIMER,
+    snapshot_date: SNAPSHOT_DATE,
+    form_id: (payload.metadata || {}).formId ?? null,
+  };
+}
+
+export async function evaluate(payload: Record<string, any>): Promise<EvaluateOut> {
+  const { profile, missing, ranked, totalEvaluated } = await rank(payload);
   return {
     profile,
     rights: ranked.map(matchOut),
-    meta: {
-      total_evaluated: matches.length,
-      missing_inputs: missing,
-      disclaimer: DISCLAIMER,
-      snapshot_date: SNAPSHOT_DATE,
-      form_id: (payload.metadata || {}).formId ?? null,
-    },
+    meta: buildMeta(payload, missing, totalEvaluated),
+  };
+}
+
+// Trimmed, presentation-ready evaluation for the frontend: only UI fields plus
+// the disclaimer. No profile, no diagnostics.
+export async function evaluateUi(payload: Record<string, any>): Promise<EvaluateUiOut> {
+  const { ranked } = await rank(payload);
+  return {
+    rights: ranked.map(uiMatchOut),
+    disclaimer: DISCLAIMER,
   };
 }
 

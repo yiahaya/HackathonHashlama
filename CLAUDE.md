@@ -34,6 +34,11 @@ Run from within `Backend/` or `Frontend/`. `node_modules` is gitignored and not 
 - `npm run dev` — Vite dev server with HMR
 - `npm run build` — type-check (`tsc`) then `vite build` to `dist/`
 - `npm run preview` — serve the production build
+- **Requires Node ≥20.19 or ≥22.12** (Vite 8). It crashes on Node 18 with
+  `ReferenceError: CustomEvent is not defined`. The backend's `ts-node` runs fine on Node 18, so a
+  mismatched global Node can run the backend but not the frontend.
+
+`Backend/MyRights.postman_collection.json` is a Postman collection for exercising the API.
 
 ## Backend architecture
 
@@ -71,9 +76,15 @@ Run from within `Backend/` or `Frontend/`. `node_modules` is gitignored and not 
   the engine results (`registrations.results` JSONB) and returns `{ id, evaluation }`.
 - `POST /evaluate` — stateless evaluation (no storage): questionnaire JSON → ranked rights. The
   contract for downstream consumers.
-- `GET /registrations/:id` — fetch a stored registration + its evaluation.
+- `GET /registrations/:id` — fetch a stored registration + its evaluation (`404` if the id is unknown).
 - JSONB params are serialized with `jsonbParam()` so arrays/objects round-trip (node-pg otherwise
   builds a Postgres array literal for JS arrays).
+
+The serialized response (`serializer.ts`) is `{ profile, rights[], meta }`. Each ranked right exposes
+the likelihood as **`percentage`** (0–100), **`band`** (`low`/`medium`/`high`), and **`status`**
+(e.g. `likely_eligible`) — *not* fields named `score`/`likelihood` — plus `explanation_he`,
+`met_conditions`, `missing_info`, `benefits[]`, and `milestones[]`. `meta` carries `total_evaluated`,
+`missing_inputs`, `disclaimer`, `snapshot_date`, and `form_id`.
 
 ### The rights DB
 The engine reads `rights`, `benefits`, `criteria`, `milestones`, `right_milestones` — created and
