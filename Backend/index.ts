@@ -68,9 +68,10 @@ app.post('/users', async (req: Request<{}, {}, CreateUserRequest>, res: Response
   }
 });
 
-// POST /login — POC auth. Accepts { email, password } and returns { user_id }:
-// the id of a registration whose email + (bcrypt) password match, or null if
-// authentication fails. No tokens/sessions — intentionally minimal for the POC.
+// POST /login — POC auth. Accepts { email, password } and returns
+// { user_id, is_admin }: the id of a registration whose email + (bcrypt)
+// password match (or null if auth fails), plus whether that registration is an
+// admin. No tokens/sessions — intentionally minimal for the POC.
 app.post('/login', async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body || {};
@@ -81,19 +82,21 @@ app.post('/login', async (req: Request, res: Response): Promise<void> => {
 
     // email is not unique on registrations, so check every row with this email.
     const result = await pool.query(
-      'SELECT id, password FROM registrations WHERE email = $1 AND password IS NOT NULL',
+      'SELECT id, password, admin FROM registrations WHERE email = $1 AND password IS NOT NULL',
       [email]
     );
 
     let userId: string | null = null;
+    let isAdmin = false;
     for (const row of result.rows) {
       if (await bcrypt.compare(password, row.password)) {
         userId = row.id;
+        isAdmin = row.admin === true;
         break;
       }
     }
 
-    res.status(200).json({ user_id: userId });
+    res.status(200).json({ user_id: userId, is_admin: isAdmin });
   } catch (error: any) {
     console.error('Error during login:', error);
     res.status(500).json({ error: 'Internal server error', detail: error.message });
@@ -376,10 +379,121 @@ app.get('/users/:userId/evaluation', async (req: Request, res: Response): Promis
   }
 });
 
+// --- Admin panel -------------------------------------------------------------
+//
+// POC admin API. There is no real authentication on these routes (token-less,
+// matching the rest of the POC) — the frontend gates access on the `is_admin`
+// flag returned by /login. They expose an operator view over registrations.
+
+// GET /admin/stats — dashboard counters. Only the real registered-users count is
+// backed by data, so that's all we return.
+app.get('/admin/stats', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      'SELECT count(*)::int AS registered_users FROM registrations WHERE admin = false'
+    );
+    res.status(200).json({ registered_users: result.rows[0].registered_users });
+  } catch (error: any) {
+    console.error('Error fetching admin stats:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
+// GET /admin/users — list registered members (excluding admins) with a
+// display name + phone pulled from their stored profile JSONB.
+app.get('/admin/users', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      `SELECT id, "userType", email, "amputeeDetails", "familyMemberDetails", created_at
+       FROM registrations
+       WHERE admin = false
+       ORDER BY created_at DESC`
+    );
+    const users = result.rows.map((row) => ({
+      id: row.id,
+      name: profileName(row),
+      phone: profilePhone(row),
+      email: row.email,
+      userType: row.userType,
+      created_at: row.created_at,
+    }));
+    res.status(200).json({ users });
+  } catch (error: any) {
+    console.error('Error listing admin users:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
+// GET /admin/users/:id — a member's full record: profile details (no password /
+// admin flag) + the rights they're tracking with status, enriched with the
+// confidence score from their stored evaluation. 404 if the id is unknown.
+app.get('/admin/users/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const reg = await pool.query(
+      'SELECT * FROM registrations WHERE id = $1',
+      [req.params.id]
+    );
+    if (reg.rowCount === 0) {
+      res.status(404).json({ error: 'Registration not found' });
+      return;
+    }
+
+    const { password, admin, ...profile } = reg.rows[0];
+
+    // Confidence per right id, from the evaluation stored at registration time.
+    const stored = reg.rows[0].results as EvaluateOut | null;
+    const confidenceById = new Map<number, number>();
+    for (const r of stored?.rights ?? []) confidenceById.set(r.id, r.percentage);
+
+    const tracked = await pool.query(
+      `SELECT ur.right_id, ur.status, ur.created_at, ur.updated_at,
+              r.name_he, r.source_url
+       FROM user_rights ur
+       JOIN rights r ON r.id = ur.right_id
+       WHERE ur.user_id = $1
+       ORDER BY ur.updated_at DESC`,
+      [req.params.id]
+    );
+    const rights = tracked.rows.map((row) => ({
+      right_id: row.right_id,
+      name_he: row.name_he,
+      source_url: row.source_url,
+      status: row.status,
+      confidence: confidenceById.get(row.right_id) ?? null,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+    }));
+
+    res.status(200).json({ profile, rights });
+  } catch (error: any) {
+    console.error('Error fetching admin user detail:', error);
+    if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
 // node-pg builds a Postgres array literal for JS arrays, which is wrong for JSONB
 // columns. Serialize JSON values explicitly so objects AND arrays round-trip.
 function jsonbParam(v: unknown): string | null {
   return v === undefined || v === null ? null : JSON.stringify(v);
+}
+
+// Best-effort display name from a registration's profile JSONB. The form stores
+// firstName/lastName under amputeeDetails (amputee) or familyMemberDetails
+// (family member); fall back to the email local part if neither is present.
+function profileName(row: any): string {
+  const d = row.amputeeDetails || row.familyMemberDetails || {};
+  const full = [d.firstName, d.lastName].filter(Boolean).join(' ').trim();
+  return full || (row.email ? String(row.email).split('@')[0] : '');
+}
+
+// Best-effort phone number from the same profile JSONB blocks.
+function profilePhone(row: any): string | null {
+  const d = row.amputeeDetails || row.familyMemberDetails || {};
+  return d.mobileNumber || d.additionalContactNumber || null;
 }
 
 // Whether a registration already exists for this email (case-insensitive).
@@ -439,10 +553,35 @@ async function bulkUpsertUserRights(userId: string, rightIds: number[], status: 
   return result.rows;
 }
 
-initDb().then(() => {
-  app.listen(port, () => {
-    console.log(`Backend server is running on http://localhost:${port}`);
+// Seed a single admin registration (idempotent). POC credentials come from env
+// (ADMIN_EMAIL / ADMIN_PASSWORD) with dev defaults. We reuse emailExists() so a
+// restart never creates a duplicate. The admin row has admin = true and only
+// auth columns populated — it isn't a real questionnaire submission.
+async function seedAdmin(): Promise<void> {
+  const email = process.env.ADMIN_EMAIL || 'admin@hashlama.local';
+  const plain = process.env.ADMIN_PASSWORD || 'admin1234';
+
+  if (await emailExists(email)) {
+    console.log(`Admin seed: '${email}' already exists, skipping`);
+    return;
+  }
+
+  const password = await bcrypt.hash(plain, 10);
+  await pool.query(
+    `INSERT INTO registrations ("userType", email, password, admin)
+     VALUES ($1, $2, $3, true)`,
+    ['admin', email, password]
+  );
+  console.log(`Admin seed: created admin user '${email}'`);
+}
+
+initDb()
+  .then(seedAdmin)
+  .then(() => {
+    app.listen(port, () => {
+      console.log(`Backend server is running on http://localhost:${port}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Failed to start server due to database initialization error:', error);
   });
-}).catch((error) => {
-  console.error('Failed to start server due to database initialization error:', error);
-});

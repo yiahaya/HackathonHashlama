@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface TopNavBarProps {
-  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
   isLoggedIn?: boolean;
 }
 

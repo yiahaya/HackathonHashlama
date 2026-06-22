@@ -5,7 +5,7 @@ import { AIChatModal } from '../components/AIChatModal';
 import { mockRights, type RightItem, type RightStatus } from '../data/mockRights';
 
 interface DashboardProps {
-  onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
+  onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
   isLoggedIn?: boolean;
 }
 

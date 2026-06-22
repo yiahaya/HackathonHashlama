@@ -16,7 +16,7 @@ describe('LoginForm', () => {
   });
 
   it('shows error on failed login', async () => {
-    vi.mocked(api.login).mockResolvedValueOnce({ success: false });
+    vi.mocked(api.login).mockResolvedValueOnce({ success: false, user_id: null, is_admin: false });
     
     render(<LoginForm />);
     fireEvent.change(screen.getByLabelText(/דואר אלקטרוני/i), { target: { value: 'test@test.com' } });

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 interface VoiceAssistantProps {
-  onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
+  onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
 }
 
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) => {

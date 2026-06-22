@@ -10,7 +10,7 @@ import { Page6General } from './formSteps/Page6General';
 import { Page7Success } from './formSteps/Page7Success';
 
 interface FormWizardProps {
-  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
 }
 
 export const FormWizard: React.FC<FormWizardProps> = ({ onNavigate }) => {

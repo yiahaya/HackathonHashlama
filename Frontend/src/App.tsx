@@ -4,11 +4,12 @@ import { Login } from './pages/Login';
 import { FormWizard } from './pages/FormWizard'
 import { Contact } from './pages/Contact';
 import { Dashboard } from './pages/Dashboard';
+import { AdminDashboard } from './pages/AdminDashboard';
 import { VoiceAssistant } from './components/VoiceAssistant';
 
 function App() {
   // Simple state-based routing for now
-  const [currentRoute, setCurrentRoute] = useState<'home' | 'login' | 'form' | 'contact' | 'dashboard'>('home');
+  const [currentRoute, setCurrentRoute] = useState<'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin'>('home');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   return (
@@ -39,19 +40,33 @@ function App() {
         >
           Contact
         </button>
-        <button 
+        <button
           onClick={() => setCurrentRoute('dashboard')}
-          className={`px-3 py-1 rounded text-sm ${currentRoute === 'dashboard' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
+          className={`mr-2 px-3 py-1 rounded text-sm ${currentRoute === 'dashboard' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
         >
           Dashboard
+        </button>
+        <button
+          onClick={() => setCurrentRoute('admin')}
+          className={`px-3 py-1 rounded text-sm ${currentRoute === 'admin' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
+        >
+          Admin
         </button>
       </div>
 
       {currentRoute === 'home' && <Home onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
-      {currentRoute === 'login' && <Login onLogin={() => { setIsLoggedIn(true); setCurrentRoute('dashboard'); }} />}
+      {currentRoute === 'login' && (
+        <Login
+          onLogin={(result) => {
+            setIsLoggedIn(true);
+            setCurrentRoute(result.is_admin ? 'admin' : 'dashboard');
+          }}
+        />
+      )}
       {currentRoute === 'form' && <FormWizard onNavigate={setCurrentRoute} />}
       {currentRoute === 'contact' && <Contact onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
       {currentRoute === 'dashboard' && <Dashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
+      {currentRoute === 'admin' && <AdminDashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
 
       <VoiceAssistant onNavigate={setCurrentRoute} />
     </>

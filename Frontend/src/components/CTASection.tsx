@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface CTASectionProps {
-  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
 }
 
 export const CTASection: React.FC<CTASectionProps> = ({ onNavigate }) => {

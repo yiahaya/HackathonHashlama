@@ -5,7 +5,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    // Allow access through the reverse-proxy / tunnel hostname used in dev.
+    allowedHosts: ['myrights.itai.be'],
     proxy: {
+      // Backend (Express on :3001). Proxied same-origin so the app works over
+      // the HTTPS tunnel without mixed-content / localhost issues.
+      '/login': 'http://localhost:3001',
+      '/admin': 'http://localhost:3001',
+      '/registrations': 'http://localhost:3001',
+      '/users': 'http://localhost:3001',
+      '/evaluate': 'http://localhost:3001',
       '/api': {
         target: 'https://www.kolzchut.org.il',
         changeOrigin: true,

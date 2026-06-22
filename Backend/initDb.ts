@@ -18,12 +18,14 @@ export async function initDb() {
       "generalQuestions" JSONB,
       metadata JSONB,
       results JSONB,
+      admin BOOLEAN NOT NULL DEFAULT false,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
 
     -- Migration for pre-existing tables: CREATE TABLE IF NOT EXISTS won't add the
-    -- password column to an already-created registrations table.
+    -- password / admin columns to an already-created registrations table.
     ALTER TABLE registrations ADD COLUMN IF NOT EXISTS password TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS admin BOOLEAN NOT NULL DEFAULT false;
     CREATE INDEX IF NOT EXISTS registrations_email_idx ON registrations(email);
   `;
 

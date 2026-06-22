@@ -5,7 +5,7 @@ import { CTASection } from '../components/CTASection';
 import { Button } from '../components/Button';
 
 interface HomeProps {
-  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
   isLoggedIn?: boolean;
 }
 
