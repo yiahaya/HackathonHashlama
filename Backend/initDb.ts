@@ -11,6 +11,10 @@ export async function initDb() {
       "userType" TEXT,
       email TEXT,
       password TEXT,
+      "firstName" TEXT,
+      "lastName" TEXT,
+      "mobileNumber" TEXT,
+      "address" TEXT,
       "amputeeDetails" JSONB,
       "familyMemberDetails" JSONB,
       "amputationDescription" JSONB,
@@ -22,8 +26,17 @@ export async function initDb() {
     );
 
     -- Migration for pre-existing tables: CREATE TABLE IF NOT EXISTS won't add the
-    -- password column to an already-created registrations table.
+    -- new columns to an already-created registrations table.
     ALTER TABLE registrations ADD COLUMN IF NOT EXISTS password TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "firstName" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "lastName" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "mobileNumber" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "address" TEXT;
+    
+    -- Cleanup of deprecated columns added prior to the alignment
+    ALTER TABLE registrations DROP COLUMN IF EXISTS "phone";
+    ALTER TABLE registrations DROP COLUMN IF EXISTS "residence";
+    
     CREATE INDEX IF NOT EXISTS registrations_email_idx ON registrations(email);
   `;
 
@@ -169,6 +182,10 @@ export async function initDb() {
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE (user_id, right_id)
     );
+    -- In case the table already exists, fix any hebrew strings and update the constraint:
+    UPDATE user_rights SET status = 'worth_checking' WHERE status = 'זכות מומלצת';
+    ALTER TABLE user_rights DROP CONSTRAINT IF EXISTS user_rights_status_check;
+    ALTER TABLE user_rights ADD CONSTRAINT user_rights_status_check CHECK (status IN ('realized','in_process','worth_checking'));
     CREATE INDEX IF NOT EXISTS user_rights_user_id_idx ON user_rights(user_id);
 
     CREATE TABLE IF NOT EXISTS user_completed_steps (
