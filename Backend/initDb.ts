@@ -40,6 +40,21 @@ export async function initDb() {
     ALTER TABLE registrations DROP COLUMN IF EXISTS "residence";
 
     CREATE INDEX IF NOT EXISTS registrations_email_idx ON registrations(email);
+
+    -- Contact-page enquiries ("פניות"). A request is "exceptional" once it has
+    -- been open for more than EXCEPTIONAL_DAYS (computed at query time, not stored).
+    CREATE TABLE IF NOT EXISTS requests (
+      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+      name TEXT,
+      title TEXT,
+      email TEXT,
+      phone TEXT,
+      description TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open','handled')),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+    ALTER TABLE requests ADD COLUMN IF NOT EXISTS title TEXT;
+    CREATE INDEX IF NOT EXISTS requests_status_idx ON requests(status);
   `;
 
   const rightsQuery = `

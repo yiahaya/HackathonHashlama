@@ -14,6 +14,7 @@ interface DashboardProps {
 
 export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, userId, onLogout }) => {
   const [rights, setRights] = useState<RightItem[]>([]);
+  const [userName, setUserName] = useState('');
   const [activeTab, setActiveTab] = useState<RightStatus | 'all'>('all');
   const [isChatOpen, setIsChatOpen] = useState(false);
 
@@ -30,6 +31,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
         ]);
 
         if (evalRes.success && rightsRes.success) {
+          if (evalRes.name) setUserName(evalRes.name);
           const trackedMap = new Map(rightsRes.rights?.map((r: any) => [r.right_id, r.status]));
           
           const mergedRights: RightItem[] = evalRes.rights?.map((r: any) => ({
@@ -130,7 +132,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
           <div className="flex flex-col gap-2">
             <h1 className="text-4xl md:text-5xl font-bold text-[#1C1C19] text-right">אזור אישי</h1>
             <p className="text-[#554337] text-lg text-right max-w-xl">
-              ברוך הבא ישראל ישראלי! <br/>
+              ברוך הבא{userName ? ` ${userName}` : ''}! <br/>
               מרכז הניהול והזכויות שלך בעמותת "הצעד הבא".
             </p>
           </div>

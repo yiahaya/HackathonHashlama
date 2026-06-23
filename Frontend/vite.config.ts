@@ -6,15 +6,16 @@ export default defineConfig({
   plugins: [react()],
   server: {
     // Allow access through the reverse-proxy / tunnel hostname used in dev.
-    allowedHosts: ['myrights.itai.be'],
+    allowedHosts: ['myrights.itai.be', 'zaadvahezi.itai.be'],
     proxy: {
-      // Backend (Express on :3001). Proxied same-origin so the app works over
+      // Backend (Express on :15000). Proxied same-origin so the app works over
       // the HTTPS tunnel without mixed-content / localhost issues.
-      '/login': 'http://localhost:3001',
-      '/admin': 'http://localhost:3001',
-      '/registrations': 'http://localhost:3001',
-      '/users': 'http://localhost:3001',
-      '/evaluate': 'http://localhost:3001',
+      '/login': 'http://localhost:15000',
+      '/admin': 'http://localhost:15000',
+      '/requests': 'http://localhost:15000',
+      '/registrations': 'http://localhost:15000',
+      '/users': 'http://localhost:15000',
+      '/evaluate': 'http://localhost:15000',
       '/api': {
         target: 'https://www.kolzchut.org.il',
         changeOrigin: true,

@@ -19,6 +19,11 @@ const MIN_CONFIDENCE_PCT = 55;
 // Allowed values for a user's tracked status on a right (status may also be null).
 const RIGHT_STATUSES = ['realized', 'in_process', 'worth_checking'] as const;
 
+// A tracked right is "exceptional" once it has been standing on 'in_process'
+// for more than this many days (measured from user_rights.updated_at, i.e. the
+// last time its status changed). Computed at query time.
+const EXCEPTIONAL_DAYS = 30;
+
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
@@ -366,7 +371,9 @@ app.delete('/users/:userId/rights/:rightId', async (req: Request, res: Response)
 app.get('/users/:userId/evaluation', async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
-      'SELECT results FROM registrations WHERE id = $1',
+      `SELECT results, email, "firstName", "lastName", "mobileNumber",
+              "amputeeDetails", "familyMemberDetails"
+       FROM registrations WHERE id = $1`,
       [req.params.userId]
     );
     if (result.rowCount === 0) {
@@ -387,8 +394,9 @@ app.get('/users/:userId/evaluation', async (req: Request, res: Response): Promis
       .filter((r) => r.percentage > MIN_CONFIDENCE_PCT)
       .map(r => uiFromMatchOut(r, completedSteps));
     const disclaimer = stored?.meta?.disclaimer ?? '';
+    const name = profileName(result.rows[0]);
 
-    res.status(200).json({ rights, disclaimer });
+    res.status(200).json({ name, rights, disclaimer });
   } catch (error: any) {
     console.error('Error fetching user evaluation:', error);
     if (error.code === '22P02') {
@@ -405,17 +413,130 @@ app.get('/users/:userId/evaluation', async (req: Request, res: Response): Promis
 // matching the rest of the POC) — the frontend gates access on the `is_admin`
 // flag returned by /login. They expose an operator view over registrations.
 
-// GET /admin/stats — dashboard counters. Only the real registered-users count is
-// backed by data, so that's all we return.
+// GET /admin/stats — dashboard counters for the three admin views: registered
+// members, open contact requests, and tracked rights stuck on 'in_process' for
+// more than EXCEPTIONAL_DAYS.
 app.get('/admin/stats', async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
-      'SELECT count(*)::int AS registered_users FROM registrations WHERE admin = false'
+      `SELECT
+         (SELECT count(*) FROM registrations WHERE admin = false)::int AS registered_users,
+         (SELECT count(*) FROM requests WHERE status = 'open')::int AS open_requests,
+         (SELECT count(*) FROM user_rights
+            WHERE status = 'in_process'
+              AND updated_at < now() - ($1 || ' days')::interval)::int AS exceptional_rights`,
+      [EXCEPTIONAL_DAYS]
     );
-    res.status(200).json({ registered_users: result.rows[0].registered_users });
+    res.status(200).json(result.rows[0]);
   } catch (error: any) {
     console.error('Error fetching admin stats:', error);
     res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
+// POST /requests — public. A contact-page enquiry. Body: { description (required),
+// name?, email?, phone? }. Returns the new request id.
+app.post('/requests', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { name, title, email, phone, description } = req.body || {};
+    if (!description || !String(description).trim()) {
+      res.status(400).json({ error: 'description is required' });
+      return;
+    }
+    const result = await pool.query(
+      `INSERT INTO requests (name, title, email, phone, description)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, created_at`,
+      [name ?? null, title ?? null, email ?? null, phone ?? null, description]
+    );
+    res.status(201).json({ id: result.rows[0].id, created_at: result.rows[0].created_at });
+  } catch (error: any) {
+    console.error('Error creating request:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
+// GET /admin/requests — list open contact-page requests. Each row carries
+// waiting_days for display.
+app.get('/admin/requests', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      `SELECT id, name, title, email, phone, description, status, created_at,
+              floor(extract(epoch FROM now() - created_at) / 86400)::int AS waiting_days
+       FROM requests
+       WHERE status = 'open'
+       ORDER BY created_at ASC`
+    );
+    res.status(200).json({ requests: result.rows });
+  } catch (error: any) {
+    console.error('Error listing requests:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
+// GET /admin/exceptional-rights — tracked rights stuck on 'in_process' for more
+// than EXCEPTIONAL_DAYS. Joined with the member (name/phone from the dedicated
+// columns, falling back to profile JSONB) and the right name. `stuck_days` =
+// days since the status last changed.
+app.get('/admin/exceptional-rights', async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query(
+      `SELECT ur.user_id, ur.right_id, ur.updated_at,
+              floor(extract(epoch FROM now() - ur.updated_at) / 86400)::int AS stuck_days,
+              r.name_he, r.source_url,
+              reg.email, reg."userType", reg."firstName", reg."lastName", reg."mobileNumber",
+              reg."amputeeDetails", reg."familyMemberDetails"
+       FROM user_rights ur
+       JOIN rights r ON r.id = ur.right_id
+       JOIN registrations reg ON reg.id = ur.user_id
+       WHERE ur.status = 'in_process'
+         AND ur.updated_at < now() - ($1 || ' days')::interval
+       ORDER BY ur.updated_at ASC`,
+      [EXCEPTIONAL_DAYS]
+    );
+    const rights = result.rows.map((row) => ({
+      user_id: row.user_id,
+      name: profileName(row),
+      phone: profilePhone(row),
+      email: row.email,
+      right_id: row.right_id,
+      name_he: row.name_he,
+      source_url: row.source_url,
+      updated_at: row.updated_at,
+      stuck_days: row.stuck_days,
+    }));
+    res.status(200).json({ rights });
+  } catch (error: any) {
+    console.error('Error listing exceptional rights:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
+// PATCH /admin/requests/:id — update a request's status (e.g. mark as handled,
+// which removes it from the open/exceptional lists). Body: { status }.
+app.patch('/admin/requests/:id', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status } = req.body || {};
+    if (status !== 'open' && status !== 'handled') {
+      res.status(400).json({ error: "status must be 'open' or 'handled'" });
+      return;
+    }
+    const result = await pool.query(
+      'UPDATE requests SET status = $2 WHERE id = $1 RETURNING *',
+      [req.params.id, status]
+    );
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: 'Request not found' });
+      return;
+    }
+    res.status(200).json(result.rows[0]);
+  } catch (error: any) {
+    console.error('Error updating request:', error);
+    if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed request id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
   }
 });
 
@@ -424,7 +545,8 @@ app.get('/admin/stats', async (_req: Request, res: Response): Promise<void> => {
 app.get('/admin/users', async (_req: Request, res: Response): Promise<void> => {
   try {
     const result = await pool.query(
-      `SELECT id, "userType", email, "amputeeDetails", "familyMemberDetails", created_at
+      `SELECT id, "userType", email, "firstName", "lastName", "mobileNumber",
+              "amputeeDetails", "familyMemberDetails", created_at
        FROM registrations
        WHERE admin = false
        ORDER BY created_at DESC`
@@ -501,17 +623,21 @@ function jsonbParam(v: unknown): string | null {
   return v === undefined || v === null ? null : JSON.stringify(v);
 }
 
-// Best-effort display name from a registration's profile JSONB. The form stores
-// firstName/lastName under amputeeDetails (amputee) or familyMemberDetails
-// (family member); fall back to the email local part if neither is present.
+// Best-effort display name. Prefer the dedicated top-level firstName/lastName
+// columns (now populated at registration time); fall back to the profile JSONB
+// (amputeeDetails / familyMemberDetails), then to the email local part.
 function profileName(row: any): string {
+  const direct = [row.firstName, row.lastName].filter(Boolean).join(' ').trim();
+  if (direct) return direct;
   const d = row.amputeeDetails || row.familyMemberDetails || {};
   const full = [d.firstName, d.lastName].filter(Boolean).join(' ').trim();
   return full || (row.email ? String(row.email).split('@')[0] : '');
 }
 
-// Best-effort phone number from the same profile JSONB blocks.
+// Best-effort phone number: prefer the top-level mobileNumber column, then the
+// same profile JSONB blocks.
 function profilePhone(row: any): string | null {
+  if (row.mobileNumber) return row.mobileNumber;
   const d = row.amputeeDetails || row.familyMemberDetails || {};
   return d.mobileNumber || d.additionalContactNumber || null;
 }
@@ -547,9 +673,9 @@ async function insertRegistration(payload: any, evaluation: unknown) {
     payload.userType ?? null,
     payload.email ?? null,
     password,
-    payload.amputeeDetails?.firstName ?? null,
-    payload.amputeeDetails?.lastName ?? null,
-    payload.amputeeDetails?.mobileNumber ?? null,
+    payload.amputeeDetails?.firstName ?? payload.familyMemberDetails?.firstName ?? null,
+    payload.amputeeDetails?.lastName ?? payload.familyMemberDetails?.lastName ?? null,
+    payload.amputeeDetails?.mobileNumber ?? payload.familyMemberDetails?.mobileNumber ?? null,
     payload.amputeeDetails?.address ?? null,
     jsonbParam(payload.amputeeDetails),
     jsonbParam(payload.familyMemberDetails),

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TopNavBar } from '../components/TopNavBar';
 import { Button } from '../components/Button';
 import { SpeechControls } from '../components/form/SpeechControls';
+import { createRequest } from '../services/api';
 
 interface ContactProps {
   onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin' | 'qna') => void;
@@ -9,31 +10,35 @@ interface ContactProps {
 }
 
 export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
+  const [name, setName] = useState('');
+  const [title, setTitle] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [description, setDescription] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [isDictatingName, setIsDictatingName] = useState(false);
+  const [isDictatingTitle, setIsDictatingTitle] = useState(false);
   const [isDictatingPhone, setIsDictatingPhone] = useState(false);
   const [isDictatingEmail, setIsDictatingEmail] = useState(false);
   const [isDictatingDesc, setIsDictatingDesc] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phone || !email || !description) {
+    if (!phone || !email || !title || !description) {
       alert('אנא מלא את כל השדות');
       return;
     }
-    
-    const payload = {
-      phone,
-      email,
-      description
-    };
-    
-    console.log('Contact Form Submitted:', JSON.stringify(payload, null, 2));
-    
-    // API Call would go here
-    setShowModal(true);
+
+    setSubmitting(true);
+    const result = await createRequest({ name, title, phone, email, description });
+    setSubmitting(false);
+
+    if (result.success) {
+      setShowModal(true);
+    } else {
+      alert('אירעה שגיאה בשליחת הפנייה. אנא נסו שוב.');
+    }
   };
 
   const handleCloseModal = () => {
@@ -63,7 +68,27 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
 
           <div className="bg-white border border-[#DBC2B2]/40 shadow-sm rounded-3xl p-10">
             <form onSubmit={handleSubmit} className="flex flex-col gap-6">
-              
+
+              <div className="flex flex-col gap-2">
+                <label className="text-right text-sm font-semibold text-[#1C1C19]">שם מלא</label>
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    dir="rtl"
+                    placeholder="ישראל ישראלי"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="w-full border border-[#DBC2B2] rounded-xl pr-4 pl-24 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-[#554337] placeholder:text-[#554337]/40"
+                  />
+                  <SpeechControls
+                    textToSpeak={`שם מלא. ${name}`}
+                    onDictate={(t) => setName(name ? name + ' ' + t : t)}
+                    isDictating={isDictatingName}
+                    setIsDictating={setIsDictatingName}
+                  />
+                </div>
+              </div>
+
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="flex-1 flex flex-col gap-2">
                   <label className="text-right text-sm font-semibold text-[#1C1C19]">מספר טלפון</label>
@@ -107,6 +132,26 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
               </div>
 
               <div className="flex flex-col gap-2">
+                <label className="text-right text-sm font-semibold text-[#1C1C19]">נושא הפנייה</label>
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    dir="rtl"
+                    placeholder="לדוגמה: בקשת מידע על מענק לימודים"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full border border-[#DBC2B2] rounded-xl pr-4 pl-24 py-3 text-right focus:outline-none focus:ring-2 focus:ring-brand-primary/50 text-[#554337] placeholder:text-[#554337]/40"
+                  />
+                  <SpeechControls
+                    textToSpeak={`נושא הפנייה. ${title}`}
+                    onDictate={(t) => setTitle(title ? title + ' ' + t : t)}
+                    isDictating={isDictatingTitle}
+                    setIsDictating={setIsDictatingTitle}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
                 <label className="text-right text-sm font-semibold text-[#1C1C19]">תיאור הפנייה</label>
                 <div className="relative w-full">
                   <textarea 
@@ -126,8 +171,8 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
               </div>
 
               <div className="flex justify-center mt-4">
-                <Button type="submit" className="!px-12 !py-4 text-lg w-full md:w-auto">
-                  הגש פנייה
+                <Button type="submit" disabled={submitting} className="!px-12 !py-4 text-lg w-full md:w-auto">
+                  {submitting ? 'שולח...' : 'הגש פנייה'}
                 </Button>
               </div>
 

@@ -48,21 +48,37 @@ export const FormWizard: React.FC<FormWizardProps> = ({ onNavigate, onLoginSucce
     setSubmitError('');
 
     // Map frontend data to the exact format expected by the backend
-    const mappedData = {
-      userType: data.userType === 'Amputee' ? 'הקטוע' : 'בן משפחה',
+    const isAmputee = data.userType === 'Amputee';
+    const mappedData: Record<string, any> = {
+      userType: isAmputee ? 'הקטוע' : 'בן משפחה',
       email: data.email,
       password: data.password,
       amputeeDetails: {
+        firstName: data.amputeeDetails.firstName,
+        lastName: data.amputeeDetails.lastName,
+        mobileNumber: data.amputeeDetails.mobileNumber,
         birthDate: data.amputeeDetails.birthDate,
         gender: data.amputeeDetails.gender,
         maritalStatus: data.amputeeDetails.maritalStatus,
         hasChildren: data.amputeeDetails.hasChildren,
         numberOfChildren: data.amputeeDetails.children ? data.amputeeDetails.children.length : 0,
-        address: { 
-          city: data.amputeeDetails.address || '', 
-          country: "ישראל" 
+        address: {
+          city: data.amputeeDetails.address || '',
+          country: "ישראל"
         }
       },
+      // Family-member registrations collect the registrant's own name/phone in
+      // the parent step; persist them so the admin/dashboard can display them.
+      ...(isAmputee ? {} : {
+        familyMemberDetails: {
+          firstName: data.parentDetails.firstName,
+          lastName: data.parentDetails.lastName,
+          mobileNumber: data.parentDetails.mobileNumber,
+          additionalContactNumber: data.parentDetails.additionalContactNumber,
+          relationToAmputee: data.parentDetails.relationToAmputee,
+          updateEmail: data.parentDetails.updateEmail,
+        },
+      }),
       amputationDescription: {
         amputationReason: data.amputationDescription.reason,
         insuringBody: data.amputationDescription.insuringBody,

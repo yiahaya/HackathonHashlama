@@ -69,12 +69,12 @@ export const getUserRights = async (userId: string): Promise<{ success: boolean;
   }
 };
 
-export const getUserEvaluation = async (userId: string): Promise<{ success: boolean; rights?: any[]; disclaimer?: string; error?: string }> => {
+export const getUserEvaluation = async (userId: string): Promise<{ success: boolean; name?: string; rights?: any[]; disclaimer?: string; error?: string }> => {
   try {
     const response = await fetch(`${API_BASE}/users/${userId}/evaluation`);
     const data = await response.json();
     if (response.ok) {
-      return { success: true, rights: data.rights, disclaimer: data.disclaimer };
+      return { success: true, name: data.name, rights: data.rights, disclaimer: data.disclaimer };
     }
     return { success: false, error: data.error || 'Failed to fetch user evaluation' };
   } catch (error: any) {
@@ -119,11 +119,78 @@ export const updateStepStatus = async (userId: string, rightId: number | string,
   }
 };
 
+// POST /requests — submit a contact-page enquiry.
+export const createRequest = async (payload: {
+  name?: string;
+  title?: string;
+  email?: string;
+  phone?: string;
+  description: string;
+}): Promise<{ success: boolean; id?: string; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE}/requests`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    const data = await response.json();
+    if (response.ok && data.id) {
+      return { success: true, id: data.id };
+    }
+    return { success: false, error: data.error || 'Failed to submit request' };
+  } catch (error: any) {
+    console.error('createRequest error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // --- Admin panel ---
 
 export interface AdminStats {
   registered_users: number;
+  open_requests: number;
+  exceptional_rights: number;
 }
+
+export interface AdminRequest {
+  id: string;
+  name: string | null;
+  title: string | null;
+  email: string | null;
+  phone: string | null;
+  description: string;
+  status: 'open' | 'handled';
+  created_at: string;
+  waiting_days: number;
+}
+
+export const getAdminRequests = () =>
+  getJson<{ requests: AdminRequest[] }>('/admin/requests').then((d) => d.requests);
+
+export interface AdminExceptionalRight {
+  user_id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  right_id: number;
+  name_he: string;
+  source_url: string | null;
+  updated_at: string;
+  stuck_days: number;
+}
+
+export const getAdminExceptionalRights = () =>
+  getJson<{ rights: AdminExceptionalRight[] }>('/admin/exceptional-rights').then((d) => d.rights);
+
+export const updateRequestStatus = async (id: string, status: 'open' | 'handled') => {
+  const res = await fetch(`${API_BASE}/admin/requests/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) throw new Error(`Failed to update request: ${res.status}`);
+  return res.json();
+};
 
 export interface AdminUserSummary {
   id: string;
