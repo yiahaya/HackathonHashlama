@@ -169,6 +169,10 @@ export async function initDb() {
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE (user_id, right_id)
     );
+    -- In case the table already exists, fix any hebrew strings and update the constraint:
+    UPDATE user_rights SET status = 'worth_checking' WHERE status = 'זכות מומלצת';
+    ALTER TABLE user_rights DROP CONSTRAINT IF EXISTS user_rights_status_check;
+    ALTER TABLE user_rights ADD CONSTRAINT user_rights_status_check CHECK (status IN ('realized','in_process','worth_checking'));
     CREATE INDEX IF NOT EXISTS user_rights_user_id_idx ON user_rights(user_id);
 
     CREATE TABLE IF NOT EXISTS user_completed_steps (

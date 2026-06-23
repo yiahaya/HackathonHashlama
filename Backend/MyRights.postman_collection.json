@@ -185,7 +185,7 @@
           "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"full@b.com\",\n  \"password\": \"s3cret\",\n  \"amputationDescription\": { \"amputationReason\": \"תאונת עבודה\" },\n  \"overrides\": { \"medical_disability_percentage\": 60, \"general_disability_percentage\": 60, \"mobility_limitation_percentage\": 60 }\n}"
         },
         "url": { "raw": "{{baseUrl}}/registrations/full", "host": ["{{baseUrl}}"], "path": ["registrations", "full"] },
-        "description": "One-shot onboarding for the frontend: stores the submission (password bcrypt-hashed), evaluates it, and seeds the confident matches (percentage > 55) as tracked rights with status 'in_process'. Responds with ONLY { user_id }. The frontend then fetches the rights via GET /users/:userId/evaluation. Saves user_id into registrationId."
+        "description": "One-shot onboarding for the frontend: stores the submission (password bcrypt-hashed), evaluates it, and seeds the confident matches (percentage > 55) as tracked rights with status 'worth_checking'. Responds with ONLY { user_id }. The frontend then fetches the rights via GET /users/:userId/evaluation. Saves user_id into registrationId."
       },
       "response": []
     },
@@ -264,7 +264,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["users", "{{registrationId}}", "rights"]
         },
-        "description": "Bulk add/update tracked rights for a user (registration). Body: { right_ids: number[], status?: 'realized'|'in_process'|'worth_checking'|null }. status defaults to 'in_process'. Atomic: an unknown right id fails the whole batch (404)."
+        "description": "Bulk add/update tracked rights for a user (registration). Body: { right_ids: number[], status?: 'realized'|'in_process'|'worth_checking'|null }. status defaults to 'worth_checking'. Atomic: an unknown right id fails the whole batch (404)."
       },
       "response": []
     },
