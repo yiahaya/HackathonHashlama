@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { initialFormData, type FormData } from '../types/form';
 import { TopNavBar } from '../components/TopNavBar';
 import { Page1Start } from './formSteps/Page1Start';
@@ -20,6 +20,11 @@ export const FormWizard: React.FC<FormWizardProps> = ({ onNavigate, onLoginSucce
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [registeredUserId, setRegisteredUserId] = useState<string | null>(null);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentPage]);
 
   const updateData = (section: keyof FormData, fields: any) => {
     if (section === 'userType' || section === 'email' || section === 'password') {
@@ -86,7 +91,7 @@ export const FormWizard: React.FC<FormWizardProps> = ({ onNavigate, onLoginSucce
     try {
       const result = await registerFull(mappedData);
       if (result.success && result.user_id) {
-        onLoginSuccess?.(result.user_id);
+        setRegisteredUserId(result.user_id);
         goToPage(7);
       } else {
         setSubmitError(result.error || 'שגיאה בשמירת הנתונים');
@@ -152,7 +157,11 @@ export const FormWizard: React.FC<FormWizardProps> = ({ onNavigate, onLoginSucce
           )}
 
           {currentPage === 7 && (
-            <Page7Success />
+            <Page7Success onComplete={() => {
+              if (registeredUserId && onLoginSuccess) {
+                onLoginSuccess(registeredUserId);
+              }
+            }} />
           )}
 
           {isSubmitting && (

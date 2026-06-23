@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { SpeechControls } from './SpeechControls';
 
 interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'onChange'> {

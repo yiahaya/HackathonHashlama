@@ -3,6 +3,7 @@ import { Button } from '../../components/Button';
 import { TextInput } from '../../components/form/TextInput';
 import { SelectInput } from '../../components/form/SelectInput';
 import { RadioGroup } from '../../components/form/RadioGroup';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import type { FormData } from '../../types/form';
 
 interface Props {
@@ -14,9 +15,18 @@ interface Props {
 
 export const Page3ParentDetails: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
   const d = data.parentDetails;
+  const { showSnackbar } = useSnackbar();
 
   const handleUpdate = (field: string, value: any) => {
     updateData('parentDetails', { [field]: value });
+  };
+
+  const handleNext = () => {
+    if (!d.relationToAmputee || !d.supportGroupPartners || !d.supportGroupParents || !d.updatePhoneType) {
+      showSnackbar('אנא מלא/י את כל שדות החובה', 'error');
+      return;
+    }
+    onNext();
   };
 
   return (
@@ -84,7 +94,7 @@ export const Page3ParentDetails: React.FC<Props> = ({ data, updateData, onNext, 
 
       <div className="flex justify-between mt-8 pt-4 border-t border-gray-100">
         <Button variant="secondary" onClick={onBack}>חזור</Button>
-        <Button onClick={onNext}>הבא</Button>
+        <Button onClick={handleNext}>הבא</Button>
       </div>
     </div>
   );
