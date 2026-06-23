@@ -60,16 +60,18 @@ function descs(crits: Criterion[], limit = 5): string[] {
 }
 
 // Presentation-ready projection for the frontend: only what a UI shows.
-export function uiMatchOut(m: RightMatch): RightMatchUiOut {
+export function uiMatchOut(m: RightMatch, completedSteps = new Set<string>()): RightMatchUiOut {
   const r = m.right;
   // Required milestones, in sort order. Milestone description_he is usually null
   // in this dataset, so fall back to the milestone title for human-readable text.
-  const steps = uniqNonEmpty(
+  const rawSteps = uniqNonEmpty(
     [...r.milestones]
       .filter((ms) => ms.isRequired)
       .sort((a, b) => a.sortOrder - b.sortOrder)
       .map((ms) => ms.descriptionHe?.trim() || ms.titleHe)
   );
+  const steps = rawSteps.map(text => ({ step: text, is_completed: completedSteps.has(`${r.id}_${text}`) }));
+
   return {
     id: r.id,
     title: r.nameHe,
@@ -85,13 +87,15 @@ export function uiMatchOut(m: RightMatch): RightMatchUiOut {
 // `registrations.results` right) down to the UI DTO. Mirrors `uiMatchOut` but
 // reads the serialized field names, so persisted evaluations can be served in
 // the exact /evaluate/ui shape without re-running the engine.
-export function uiFromMatchOut(m: RightMatchOut): RightMatchUiOut {
-  const steps = uniqNonEmpty(
+export function uiFromMatchOut(m: RightMatchOut, completedSteps = new Set<string>()): RightMatchUiOut {
+  const rawSteps = uniqNonEmpty(
     [...m.milestones]
       .filter((ms) => ms.is_required)
       .sort((a, b) => a.sort_order - b.sort_order)
       .map((ms) => ms.description_he?.trim() || ms.title_he)
   );
+  const steps = rawSteps.map(text => ({ step: text, is_completed: completedSteps.has(`${m.id}_${text}`) }));
+
   return {
     id: m.id,
     title: m.name_he,
