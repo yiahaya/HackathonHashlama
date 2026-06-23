@@ -423,16 +423,20 @@ async function insertRegistration(payload: any, evaluation: unknown) {
 
   const insert = `
     INSERT INTO registrations
-      ("userType", email, password, "amputeeDetails", "familyMemberDetails",
-       "amputationDescription", "prosthesisUsage", "generalQuestions",
-       metadata, results)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ("userType", email, password, "firstName", "lastName", "mobileNumber", "address",
+       "amputeeDetails", "familyMemberDetails", "amputationDescription",
+       "prosthesisUsage", "generalQuestions", metadata, results)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING id, created_at
   `;
   const values = [
     payload.userType ?? null,
     payload.email ?? null,
     password,
+    payload.amputeeDetails?.firstName ?? null,
+    payload.amputeeDetails?.lastName ?? null,
+    payload.amputeeDetails?.mobileNumber ?? null,
+    payload.amputeeDetails?.address ?? null,
     jsonbParam(payload.amputeeDetails),
     jsonbParam(payload.familyMemberDetails),
     jsonbParam(payload.amputationDescription),

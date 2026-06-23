@@ -11,6 +11,10 @@ export async function initDb() {
       "userType" TEXT,
       email TEXT,
       password TEXT,
+      "firstName" TEXT,
+      "lastName" TEXT,
+      "mobileNumber" TEXT,
+      "address" TEXT,
       "amputeeDetails" JSONB,
       "familyMemberDetails" JSONB,
       "amputationDescription" JSONB,
@@ -22,8 +26,17 @@ export async function initDb() {
     );
 
     -- Migration for pre-existing tables: CREATE TABLE IF NOT EXISTS won't add the
-    -- password column to an already-created registrations table.
+    -- new columns to an already-created registrations table.
     ALTER TABLE registrations ADD COLUMN IF NOT EXISTS password TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "firstName" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "lastName" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "mobileNumber" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "address" TEXT;
+    
+    -- Cleanup of deprecated columns added prior to the alignment
+    ALTER TABLE registrations DROP COLUMN IF EXISTS "phone";
+    ALTER TABLE registrations DROP COLUMN IF EXISTS "residence";
+    
     CREATE INDEX IF NOT EXISTS registrations_email_idx ON registrations(email);
   `;
 
