@@ -52,6 +52,16 @@ export const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose }) => 
       role: 'user',
       content: userText
     };
+    const wordsCount = userText.trim().split(/\s+/).length;
+    if (wordsCount < 3) {
+      const errorMsg: Message = {
+        id: (Date.now() + 1).toString(),
+        role: 'ai',
+        content: 'על השאלה לכלול שלוש מילים לכל הפחות. אנא פרט יותר.'
+      };
+      setMessages(prev => [...prev, newUserMsg, errorMsg]);
+      return;
+    }
     
     setMessages(prev => [...prev, newUserMsg]);
     setIsLoading(true);
@@ -70,7 +80,16 @@ export const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose }) => 
       });
 
       if (!response.ok) {
-        throw new Error('Network response was not ok');
+        let errorMessage = 'Network response was not ok';
+        try {
+          const errorData = await response.json();
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          }
+        } catch (e) {
+          // Ignore JSON parse errors for the error body
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -88,7 +107,9 @@ export const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose }) => 
       const errorMsg: Message = {
         id: (Date.now() + 1).toString(),
         role: 'ai',
-        content: 'אופס, אירעה שגיאה בתקשורת מול השרת. אנא נסה שוב מאוחר יותר.'
+        content: error instanceof Error && error.message !== 'Network response was not ok' 
+          ? error.message 
+          : 'אופס, אירעה שגיאה בתקשורת מול השרת. אנא נסה שוב מאוחר יותר.'
       };
       setMessages(prev => [...prev, errorMsg]);
     } finally {
