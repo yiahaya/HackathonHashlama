@@ -116,4 +116,17 @@ export const scheduleProsthesisReminder = async (userId: string, receiptDate: st
     console.error('scheduleProsthesisReminder error:', error);
     return { success: false, error: error.message };
   }
+}
+export const getRehabilitationCenters = async (): Promise<{ success: boolean; centers?: any[]; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/rehabilitation-centers`);
+    const data = await response.json();
+    if (response.ok) {
+      return { success: true, centers: data };
+    }
+    return { success: false, error: data.error || 'Failed to fetch rehabilitation centers' };
+  } catch (error: any) {
+    console.error('getRehabilitationCenters error:', error);
+    return { success: false, error: error.message };
+  }
 };

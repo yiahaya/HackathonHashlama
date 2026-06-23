@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 import { pool } from './db';
 import { initDb } from './initDb';
 import { evaluate, evaluateUi, uiFromMatchOut } from './engine';
-import type { EvaluateOut } from './engine';
+import type { EvaluateOut, RightMatchOut } from './engine';
 import { startScheduler } from './scheduler';
 
 dotenv.config();
@@ -120,10 +120,18 @@ app.post('/registrations', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Run the rule engine first (it doesn't need the stored row).
     const evaluation = await evaluate(payload);
 
     const row = await insertRegistration(payload, evaluation);
+
+    // Seed tracked rights with confident matches as 'worth_checking'.
+    const confidentMatches = evaluation.rights
+      .filter((r: RightMatchOut) => r.percentage > MIN_CONFIDENCE_PCT)
+      .map((r: RightMatchOut) => r.id);
+
+    if (confidentMatches.length > 0) {
+      await bulkUpsertUserRights(row.id, confidentMatches, 'worth_checking');
+    }
 
     res.status(201).json({
       message: 'Registration stored and evaluated',
@@ -158,10 +166,13 @@ app.post('/registrations/full', async (req: Request, res: Response): Promise<voi
     const evaluation = await evaluate(payload);
     const row = await insertRegistration(payload, evaluation);
 
-    // Seed the confident matches as tracked rights for the new registration.
-    const confident = evaluation.rights.filter((r) => r.percentage > MIN_CONFIDENCE_PCT);
-    if (confident.length > 0) {
-      await bulkUpsertUserRights(row.id, confident.map((r) => r.id), 'in_process');
+    // Seed tracked rights with confident matches as 'worth_checking' (recommended rights).
+    const confidentMatches = evaluation.rights
+      .filter((r: RightMatchOut) => r.percentage > MIN_CONFIDENCE_PCT)
+      .map((r: RightMatchOut) => r.id);
+
+    if (confidentMatches.length > 0) {
+      await bulkUpsertUserRights(row.id, confidentMatches, 'worth_checking');
     }
 
     res.status(201).json({ user_id: row.id });
@@ -264,12 +275,12 @@ app.put('/users/:userId/rights/:rightId', async (req: Request, res: Response): P
 
 // POST /users/:userId/rights — bulk add/update tracked rights. Body:
 // { "right_ids": number[], "status"?: <RIGHT_STATUSES | null> }. Status defaults
-// to 'in_process'. Atomic: an unknown right id fails the whole batch (404).
+// to 'worth_checking'. Atomic: an unknown right id fails the whole batch (404).
 app.post('/users/:userId/rights', async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
     const rightIds = req.body?.right_ids;
-    const status = req.body?.status === undefined ? 'in_process' : req.body.status;
+    const status = req.body?.status === undefined ? 'worth_checking' : req.body.status;
 
     if (!Array.isArray(rightIds) || rightIds.length === 0) {
       res.status(400).json({ error: 'right_ids must be a non-empty array' });
@@ -412,16 +423,20 @@ async function insertRegistration(payload: any, evaluation: unknown) {
 
   const insert = `
     INSERT INTO registrations
-      ("userType", email, password, "amputeeDetails", "familyMemberDetails",
-       "amputationDescription", "prosthesisUsage", "generalQuestions",
-       metadata, results)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ("userType", email, password, "firstName", "lastName", "mobileNumber", "address",
+       "amputeeDetails", "familyMemberDetails", "amputationDescription",
+       "prosthesisUsage", "generalQuestions", metadata, results)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING id, created_at
   `;
   const values = [
     payload.userType ?? null,
     payload.email ?? null,
     password,
+    payload.amputeeDetails?.firstName ?? null,
+    payload.amputeeDetails?.lastName ?? null,
+    payload.amputeeDetails?.mobileNumber ?? null,
+    payload.amputeeDetails?.address ?? null,
     jsonbParam(payload.amputeeDetails),
     jsonbParam(payload.familyMemberDetails),
     jsonbParam(payload.amputationDescription),
@@ -539,6 +554,17 @@ app.post('/users/:userId/prosthesis-schedule', async (req: Request, res: Respons
     } else {
       res.status(500).json({ error: 'Internal server error', detail: error.message });
     }
+  }
+});
+
+// GET /rehabilitation-centers — Returns all rehabilitation centers with their coordinates
+app.get('/rehabilitation-centers', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query('SELECT * FROM rehabilitation_centers ORDER BY id ASC');
+    res.status(200).json(result.rows);
+  } catch (error: any) {
+    console.error('Error fetching rehabilitation centers:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
   }
 });
 

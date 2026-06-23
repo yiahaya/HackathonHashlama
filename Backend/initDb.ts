@@ -11,6 +11,10 @@ export async function initDb() {
       "userType" TEXT,
       email TEXT,
       password TEXT,
+      "firstName" TEXT,
+      "lastName" TEXT,
+      "mobileNumber" TEXT,
+      "address" TEXT,
       "amputeeDetails" JSONB,
       "familyMemberDetails" JSONB,
       "amputationDescription" JSONB,
@@ -22,8 +26,17 @@ export async function initDb() {
     );
 
     -- Migration for pre-existing tables: CREATE TABLE IF NOT EXISTS won't add the
-    -- password column to an already-created registrations table.
+    -- new columns to an already-created registrations table.
     ALTER TABLE registrations ADD COLUMN IF NOT EXISTS password TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "firstName" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "lastName" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "mobileNumber" TEXT;
+    ALTER TABLE registrations ADD COLUMN IF NOT EXISTS "address" TEXT;
+    
+    -- Cleanup of deprecated columns added prior to the alignment
+    ALTER TABLE registrations DROP COLUMN IF EXISTS "phone";
+    ALTER TABLE registrations DROP COLUMN IF EXISTS "residence";
+    
     CREATE INDEX IF NOT EXISTS registrations_email_idx ON registrations(email);
   `;
 
@@ -169,6 +182,10 @@ export async function initDb() {
         updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE (user_id, right_id)
     );
+    -- In case the table already exists, fix any hebrew strings and update the constraint:
+    UPDATE user_rights SET status = 'worth_checking' WHERE status = 'זכות מומלצת';
+    ALTER TABLE user_rights DROP CONSTRAINT IF EXISTS user_rights_status_check;
+    ALTER TABLE user_rights ADD CONSTRAINT user_rights_status_check CHECK (status IN ('realized','in_process','worth_checking'));
     CREATE INDEX IF NOT EXISTS user_rights_user_id_idx ON user_rights(user_id);
 
     CREATE TABLE IF NOT EXISTS user_completed_steps (
@@ -186,6 +203,34 @@ export async function initDb() {
         next_email_date TIMESTAMPTZ NOT NULL,
         created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
     );
+
+    CREATE TABLE IF NOT EXISTS rehabilitation_centers (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        address TEXT NOT NULL,
+        lat NUMERIC NOT NULL,
+        lng NUMERIC NOT NULL
+    );
+
+    -- Seed the rehabilitation centers if they don't exist
+    INSERT INTO rehabilitation_centers (name, address, lat, lng)
+    SELECT * FROM (VALUES
+        ('בית חולים לוינשטיין (רעננה)', 'דרך ירושלים 278, רעננה', 32.1818, 34.8624),
+        ('המרכז הרפואי שיבא תל השומר – בית החולים השיקומי (רמת גן)', 'דרך שיבא 2, רמת גן', 32.0448, 34.8431),
+        ('בית חולים שיקומי רעות (תל אביב)', 'שדרות החי"ל 2, תל אביב-יפו', 32.0625, 34.7958),
+        ('המרכז הרפואי תל אביב ע"ש סוראסקי – איכילוב (תל אביב)', 'רחוב ויצמן 6, תל אביב-יפו', 32.0806, 34.7896),
+        ('מרכז רפואי גריאטרי שיקומי בית רבקה (פתח תקווה)', 'רחוב החמישה 4, פתח תקווה', 32.0722, 34.8943),
+        ('רוטשילד – מכון לשיקום ופיזיותרפיה כללית (פתח תקווה)', 'רחוב רוטשילד 119, פתח תקווה', 32.0886, 34.8817),
+        ('מדיקל קר – Medical Care (בת ים)', 'רחוב הרב ניסנבאום 14, בת ים', 32.0089, 34.7501),
+        ('המרכז הרפואי הדסה הר הצופים – מחלקת שיקום (ירושלים)', 'דרך בנימין מזר, ירושלים', 31.7994, 35.2425),
+        ('בית חולים אלי"ן – שיקום ילדים ונוער (ירושלים)', 'רחוב שמואל באיר 8, ירושלים', 31.7686, 35.1681),
+        ('בית חולים פלימן (חיפה)', 'רחוב זלמן שניאור 22, חיפה', 32.7936, 34.9892),
+        ('המרכז הרפואי בני ציון – מכון פיזיותרפיה (חיפה)', 'שדרות אליהו גולומב 47, חיפה', 32.8105, 34.9928),
+        ('המרכז הרפואי לגליל – מחלקת שיקום (נהריה)', 'דרך בן עמי קילומטר 3, נהריה', 32.9934, 35.1278),
+        ('בית הדר – מרכז רפואי לשיקום (אשדוד)', 'רחוב הרפואה 1, אשדוד', 31.7825, 34.6548),
+        ('המרכז הרפואי סורוקה – מחלקת שיקום (באר שבע)', 'שדרות יצחק רגר 151, באר שבע', 31.2589, 34.7978)
+    ) AS tmp(name, address, lat, lng)
+    WHERE NOT EXISTS (SELECT 1 FROM rehabilitation_centers LIMIT 1);
   `;
 
   try {
