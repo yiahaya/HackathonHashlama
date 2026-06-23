@@ -4,10 +4,11 @@ import { Login } from './pages/Login';
 import { FormWizard } from './pages/FormWizard'
 import { Contact } from './pages/Contact';
 import { Dashboard } from './pages/Dashboard';
+import { Qna } from './pages/Qna';
 import { VoiceAssistant } from './components/VoiceAssistant';
 
 function App() {
-  const [currentRoute, setCurrentRoute] = useState<'home' | 'login' | 'form' | 'contact' | 'dashboard'>('home');
+  const [currentRoute, setCurrentRoute] = useState<'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'qna'>('home');
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -67,6 +68,12 @@ function App() {
         >
           Dashboard
         </button>
+        <button 
+          onClick={() => setCurrentRoute('qna')}
+          className={`ml-2 px-3 py-1 rounded text-sm ${currentRoute === 'qna' ? 'bg-brand-primary text-white' : 'bg-gray-200'}`}
+        >
+          Q&A
+        </button>
         {isLoggedIn && (
           <button 
             onClick={handleLogout}
@@ -82,6 +89,7 @@ function App() {
       {currentRoute === 'form' && <FormWizard onNavigate={setCurrentRoute} onLoginSuccess={handleLoginSuccess} />}
       {currentRoute === 'contact' && <Contact onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
       {currentRoute === 'dashboard' && <Dashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} userId={userId} />}
+      {currentRoute === 'qna' && <Qna onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
 
       <VoiceAssistant onNavigate={setCurrentRoute} />
     </>
