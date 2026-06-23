@@ -6,6 +6,7 @@ import { pool } from './db';
 import { initDb } from './initDb';
 import { evaluate, evaluateUi, uiFromMatchOut } from './engine';
 import type { EvaluateOut } from './engine';
+import { startScheduler } from './scheduler';
 
 dotenv.config();
 
@@ -359,10 +360,18 @@ app.get('/users/:userId/evaluation', async (req: Request, res: Response): Promis
       return;
     }
 
+    const completedStepsRes = await pool.query(
+      'SELECT right_id, step_text FROM user_completed_steps WHERE user_id = $1',
+      [req.params.userId]
+    );
+    const completedSteps = new Set<string>(
+      completedStepsRes.rows.map((row: any) => `${row.right_id}_${row.step_text}`)
+    );
+
     const stored = result.rows[0].results as EvaluateOut | null;
     const rights = (stored?.rights ?? [])
       .filter((r) => r.percentage > MIN_CONFIDENCE_PCT)
-      .map(uiFromMatchOut);
+      .map(r => uiFromMatchOut(r, completedSteps));
     const disclaimer = stored?.meta?.disclaimer ?? '';
 
     res.status(200).json({ rights, disclaimer });
@@ -439,7 +448,102 @@ async function bulkUpsertUserRights(userId: string, rightIds: number[], status: 
   return result.rows;
 }
 
+// POST /users/:userId/rights/:rightId/steps — Toggle a step's completion status.
+// Body: { "step": "Text of the step", "is_completed": boolean }
+app.post('/users/:userId/rights/:rightId/steps', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, rightId } = req.params;
+    const { step, is_completed } = req.body;
+
+    if (typeof step !== 'string' || typeof is_completed !== 'boolean') {
+      res.status(400).json({ error: 'Body must contain string "step" and boolean "is_completed"' });
+      return;
+    }
+
+    if (is_completed) {
+      await pool.query(
+        `INSERT INTO user_completed_steps (user_id, right_id, step_text)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, right_id, step_text) DO NOTHING`,
+        [userId, rightId, step]
+      );
+    } else {
+      await pool.query(
+        `DELETE FROM user_completed_steps WHERE user_id = $1 AND right_id = $2 AND step_text = $3`,
+        [userId, rightId, step]
+      );
+    }
+
+    res.status(200).json({ success: true, rightId, step, is_completed });
+  } catch (error: any) {
+    console.error('Error toggling completed step:', error);
+    if (error.code === '23503') {
+      res.status(404).json({ error: 'Unknown user or right' });
+    } else if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id or right id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
+// POST /users/:userId/prosthesis-schedule — Schedules an email reminder
+// for prosthesis eligibility (3 years minus 2 months from receipt date).
+app.post('/users/:userId/prosthesis-schedule', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { receiptDate, info } = req.body;
+    const { userId } = req.params;
+
+    if (!receiptDate || !info) {
+      res.status(400).json({ error: 'receiptDate and info are required' });
+      return;
+    }
+
+    // 1. Check if the user exists
+    const result = await pool.query(
+      'SELECT email FROM registrations WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // 2. Calculate the date: 3 years minus 2 months from receiptDate
+    const dateObj = new Date(receiptDate);
+    if (isNaN(dateObj.getTime())) {
+      res.status(400).json({ error: 'Invalid receiptDate format' });
+      return;
+    }
+
+    dateObj.setFullYear(dateObj.getFullYear() + 3);
+    dateObj.setMonth(dateObj.getMonth() - 2);
+
+    // 3. Save the schedule to the database
+    await pool.query(
+      `INSERT INTO prosthesis_schedules (user_id, info, next_email_date)
+       VALUES ($1, $2, $3)`,
+      [userId, info, dateObj.toISOString()]
+    );
+
+    res.status(200).json({
+      message: 'Email reminder scheduled successfully in the database',
+      scheduled_date: dateObj.toISOString(),
+      prosthesis_info: info
+    });
+  } catch (error: any) {
+    console.error('Error scheduling prosthesis reminder:', error);
+    if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
 initDb().then(() => {
+  startScheduler();
   app.listen(port, () => {
     console.log(`Backend server is running on http://localhost:${port}`);
   });
