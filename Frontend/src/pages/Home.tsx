@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TopNavBar } from '../components/TopNavBar';
 import { HeroSection } from '../components/HeroSection';
 import { Button } from '../components/Button';
+import MapPopup from '../components/MapPopup';
 
 interface HomeProps {
   onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
@@ -9,6 +10,8 @@ interface HomeProps {
 }
 
 export const Home: React.FC<HomeProps> = ({ onNavigate, isLoggedIn }) => {
+  const [isMapOpen, setIsMapOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-brand-bgLight relative overflow-hidden">
       <TopNavBar onNavigate={onNavigate} isLoggedIn={isLoggedIn} />
@@ -35,11 +38,20 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, isLoggedIn }) => {
             >
               כניסה לאיזור האישי
             </Button>
+            <Button
+              variant="primary"
+              className="!px-8 shadow-lg hover:-translate-y-1 transition-transform"
+              onClick={() => setIsMapOpen(true)}
+            >
+              לחץ לצפייה במפה
+            </Button>
           </div>
         </section>
 
         <HeroSection />
       </main>
+
+      {isMapOpen && <MapPopup onClose={() => setIsMapOpen(false)} />}
     </div>
   );
 };

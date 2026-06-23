@@ -131,7 +131,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
             <h1 className="text-4xl md:text-5xl font-bold text-[#1C1C19] text-right">אזור אישי</h1>
             <p className="text-[#554337] text-lg text-right max-w-xl">
               ברוך הבא ישראל ישראלי! <br/>
-              מרכז הניהול והזכויות שלך בעמותת "הצעד הבא".
+              מרכז הניהול והזכויות שלך ב"הצעד שלי".
             </p>
           </div>
 
