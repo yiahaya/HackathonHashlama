@@ -93,8 +93,8 @@ export const RightsCard: React.FC<RightsCardProps> = ({ right, onStatusChange, o
               >
                 <div className={`w-6 h-6 rounded-full border flex items-center justify-center flex-shrink-0 transition-colors ${
                   stepObj.done 
-                    ? 'bg-brand-primary border-brand-primary text-white' 
-                    : 'bg-white border-[#DBC2B2] text-transparent group-hover:border-brand-primary/50'
+                    ? 'bg-green-500 border-green-500 text-white' 
+                    : 'bg-white border-[#DBC2B2] text-transparent group-hover:border-green-500/50'
                 }`}>
                    <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />

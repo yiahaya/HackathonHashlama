@@ -88,7 +88,7 @@ function App() {
       {currentRoute === 'login' && <Login onLogin={handleLoginSuccess} />}
       {currentRoute === 'form' && <FormWizard onNavigate={setCurrentRoute} onLoginSuccess={handleLoginSuccess} />}
       {currentRoute === 'contact' && <Contact onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
-      {currentRoute === 'dashboard' && <Dashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} userId={userId} />}
+      {currentRoute === 'dashboard' && <Dashboard onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} userId={userId} onLogout={handleLogout} />}
       {currentRoute === 'qna' && <Qna onNavigate={setCurrentRoute} isLoggedIn={isLoggedIn} />}
 
       <VoiceAssistant onNavigate={setCurrentRoute} />
