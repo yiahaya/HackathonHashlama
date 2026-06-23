@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from './Button';
 import { TextInput } from './form/TextInput';
 import { login } from '../services/api';
+import { useSnackbar } from '../contexts/SnackbarContext';
 
 interface LoginFormProps {
   onLogin?: (userId: string) => void;
@@ -12,6 +13,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { showSnackbar } = useSnackbar();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +23,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onLogin }) => {
     try {
       const result = await login(email, password);
       if (result.success && result.user_id) {
-        alert('התחברת בהצלחה!');
+        showSnackbar('התחברת בהצלחה!', 'success');
         onLogin?.(result.user_id);
       } else {
         setError(result.error || 'שם משתמש או סיסמה שגויים');

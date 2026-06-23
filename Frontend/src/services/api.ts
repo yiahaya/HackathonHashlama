@@ -100,6 +100,23 @@ export const updateStepStatus = async (userId: string, rightId: number | string,
   }
 };
 
+export const scheduleProsthesisReminder = async (userId: string, receiptDate: string, info: string): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/users/${userId}/prosthesis-schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ receiptDate, info })
+    });
+    if (response.ok) {
+      return { success: true };
+    }
+    const data = await response.json();
+    return { success: false, error: data.error || 'Failed to schedule reminder' };
+  } catch (error: any) {
+    console.error('scheduleProsthesisReminder error:', error);
+    return { success: false, error: error.message };
+  }
+}
 export const getRehabilitationCenters = async (): Promise<{ success: boolean; centers?: any[]; error?: string }> => {
   try {
     const response = await fetch(`${API_BASE_URL}/rehabilitation-centers`);

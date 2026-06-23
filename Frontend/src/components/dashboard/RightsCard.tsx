@@ -5,10 +5,13 @@ interface RightsCardProps {
   right: RightItem;
   onStatusChange: (id: string, newStatus: RightStatus) => void;
   onStepToggle: (id: string, stepIndex: number) => void;
+  onScheduleReminder?: (id: string, date: string, title: string) => void;
 }
 
-export const RightsCard: React.FC<RightsCardProps> = ({ right, onStatusChange, onStepToggle }) => {
+export const RightsCard: React.FC<RightsCardProps> = ({ right, onStatusChange, onStepToggle, onScheduleReminder }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isReminderModalOpen, setIsReminderModalOpen] = useState(false);
+  const [reminderDate, setReminderDate] = useState('');
 
   const statusOptions: { value: RightStatus; label: string }[] = [
     { value: 'realized', label: 'זכויות ממומשות' },
@@ -64,6 +67,15 @@ export const RightsCard: React.FC<RightsCardProps> = ({ right, onStatusChange, o
             </svg>
           </button>
 
+          {(right.status === 'realized' && (right.title.includes('תותבת') || right.title.includes('תותבות'))) && (
+            <button
+              onClick={() => setIsReminderModalOpen(true)}
+              className="bg-[#FEA776] text-[#773A12] font-semibold px-4 py-2 rounded-full hover:bg-[#FEA776]/80 transition-colors text-sm ml-auto md:ml-0"
+            >
+              תתזכר אותי במייל
+            </button>
+          )}
+
           <div className="flex items-center gap-3">
             <span className="text-[#554337] text-sm font-medium">שנה סטטוס:</span>
             <select 
@@ -106,6 +118,53 @@ export const RightsCard: React.FC<RightsCardProps> = ({ right, onStatusChange, o
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* Reminder Modal */}
+      {isReminderModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" dir="rtl">
+          <div className="bg-white rounded-xl shadow-xl w-[90%] max-w-md p-6 relative">
+            <button 
+              onClick={() => setIsReminderModalOpen(false)}
+              className="absolute top-4 left-4 text-gray-500 hover:text-gray-800"
+            >
+              <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+            <h3 className="text-xl font-bold mb-4 text-[#1C1C19]">תזכורת למייל</h3>
+            <p className="text-[#554337] mb-4">
+              האם תרצה לקבל התראה במייל כחודש לפני הזכאות שלך לתותבת חדשה? אם כן תמלא את תאריך קבלת התותבת
+            </p>
+            <input 
+              type="date" 
+              className="w-full border border-gray-300 rounded-lg p-2 mb-6" 
+              value={reminderDate}
+              onChange={(e) => setReminderDate(e.target.value)}
+            />
+            <div className="flex justify-end gap-3">
+              <button 
+                onClick={() => setIsReminderModalOpen(false)}
+                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                ביטול
+              </button>
+              <button 
+                onClick={() => {
+                  if (onScheduleReminder && reminderDate) {
+                    onScheduleReminder(right.id, reminderDate, right.title);
+                    setIsReminderModalOpen(false);
+                    setReminderDate('');
+                  }
+                }}
+                disabled={!reminderDate}
+                className="px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                אישור
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '../../components/Button';
 import { RadioGroup } from '../../components/form/RadioGroup';
 import type { FormData } from '../../types/form';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 
 interface Props {
   data: FormData;
@@ -10,9 +11,11 @@ interface Props {
 }
 
 export const Page1Start: React.FC<Props> = ({ data, updateData, onNext }) => {
+  const { showSnackbar } = useSnackbar();
+
   const handleNext = () => {
     if (!data.userType) {
-      alert('אנא בחר/י אפשרות כדי להמשיך');
+      showSnackbar('אנא בחר/י אפשרות כדי להמשיך', 'error');
       return;
     }
     onNext(data.userType);

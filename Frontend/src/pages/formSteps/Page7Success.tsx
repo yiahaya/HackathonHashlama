@@ -1,7 +1,12 @@
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
+import { Button } from '../../components/Button';
 
-export const Page7Success: React.FC = () => {
+interface Props {
+  onComplete: () => void;
+}
+
+export const Page7Success: React.FC<Props> = ({ onComplete }) => {
   useEffect(() => {
     // Fire confetti on mount
     const duration = 3000;
@@ -41,6 +46,9 @@ export const Page7Success: React.FC = () => {
       <p className="text-brand-textDark text-lg text-center max-w-md">
         תודה רבה על השיתוף. צוות העמותה יבחן את הפרטים ויחזור אליכם בהקדם במידת הצורך.
       </p>
+      <div className="mt-8">
+        <Button onClick={onComplete}>מעבר לאזור האישי</Button>
+      </div>
     </div>
   );
 };

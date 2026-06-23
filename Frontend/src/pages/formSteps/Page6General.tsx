@@ -4,6 +4,7 @@ import { TextInput } from '../../components/form/TextInput';
 import { TextAreaInput } from '../../components/form/TextAreaInput';
 import { SelectInput } from '../../components/form/SelectInput';
 import { CheckboxGroup } from '../../components/form/CheckboxGroup';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import type { FormData } from '../../types/form';
 
 interface Props {
@@ -15,9 +16,22 @@ interface Props {
 
 export const Page6General: React.FC<Props> = ({ data, updateData, onSubmit, onBack }) => {
   const d = data.generalQuestions;
+  const { showSnackbar } = useSnackbar();
 
   const handleUpdate = (field: string, value: any) => {
     updateData('generalQuestions', { [field]: value });
+  };
+
+  const handleSubmit = () => {
+    if (!data.email || !data.password || !d.familiarWithRights || !d.receivingDisability || !d.educationLevel || !d.workingFullTime) {
+      showSnackbar('אנא מלא/י את כל שדות החובה', 'error');
+      return;
+    }
+    if (['Bachelors', 'Masters/PhD', 'Diploma'].includes(d.educationLevel) && !d.studyField) {
+      showSnackbar('אנא בחר/י את תחום הלימוד', 'error');
+      return;
+    }
+    onSubmit();
   };
 
   return (
@@ -165,7 +179,7 @@ export const Page6General: React.FC<Props> = ({ data, updateData, onSubmit, onBa
 
       <div className="flex justify-between mt-8 pt-4 border-t border-gray-100">
         <Button variant="secondary" onClick={onBack}>חזור</Button>
-        <Button onClick={onSubmit}>שלח</Button>
+        <Button onClick={handleSubmit}>שלח</Button>
       </div>
     </div>
   );

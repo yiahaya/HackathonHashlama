@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from '../../components/Button';
 import { SelectInput } from '../../components/form/SelectInput';
 import { CheckboxGroup } from '../../components/form/CheckboxGroup';
+import { useSnackbar } from '../../contexts/SnackbarContext';
 import type { FormData } from '../../types/form';
 
 interface Props {
@@ -13,9 +14,18 @@ interface Props {
 
 export const Page5Prosthesis: React.FC<Props> = ({ data, updateData, onNext, onBack }) => {
   const d = data.prosthesisUsage;
+  const { showSnackbar } = useSnackbar();
 
   const handleUpdate = (field: string, value: any) => {
     updateData('prosthesisUsage', { [field]: value });
+  };
+
+  const handleNext = () => {
+    if (!d.instituteName || !d.prosthesisType || !d.usageFrequency || !d.hasSportsProsthesis || !d.ampTestResult) {
+      showSnackbar('אנא מלא/י את כל שדות החובה', 'error');
+      return;
+    }
+    onNext();
   };
 
   return (
@@ -89,7 +99,7 @@ export const Page5Prosthesis: React.FC<Props> = ({ data, updateData, onNext, onB
 
       <div className="flex justify-between mt-8 pt-4 border-t border-gray-100">
         <Button variant="secondary" onClick={onBack}>חזור</Button>
-        <Button onClick={onNext}>הבא</Button>
+        <Button onClick={handleNext}>הבא</Button>
       </div>
     </div>
   );
