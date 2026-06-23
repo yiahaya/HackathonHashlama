@@ -101,6 +101,24 @@ export const updateRightStatus = async (userId: string, rightId: number | string
   }
 };
 
+export const updateStepStatus = async (userId: string, rightId: number | string, step: string, is_completed: boolean): Promise<{ success: boolean; error?: string }> => {
+  try {
+    const response = await fetch(`${API_BASE}/users/${userId}/rights/${rightId}/steps`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ step, is_completed })
+    });
+    if (response.ok) {
+      return { success: true };
+    }
+    const data = await response.json();
+    return { success: false, error: data.error || 'Failed to update step status' };
+  } catch (error: any) {
+    console.error('updateStepStatus error:', error);
+    return { success: false, error: error.message };
+  }
+};
+
 // --- Admin panel ---
 
 export interface AdminStats {

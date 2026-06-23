@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 interface VoiceAssistantProps {
-  onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
+  onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin' | 'qna') => void;
 }
 
 export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) => {
-  const [isListening, setIsListening] = useState(true); // Always listen for wake word
+  const [isListening, setIsListening] = useState(false); // Listen when toggled
   const [isAwake, setIsAwake] = useState(false);
   const [currentTranscript, setCurrentTranscript] = useState('');
   const recognitionRef = useRef<any>(null);
@@ -112,6 +112,10 @@ export const VoiceAssistant: React.FC<VoiceAssistantProps> = ({ onNavigate }) =>
 
     recognition.onerror = (e: any) => {
       console.error("Speech recognition error", e.error);
+      if (e.error === 'not-allowed') {
+        setIsListening(false);
+        setIsAwake(false);
+      }
     };
 
     recognitionRef.current = recognition;

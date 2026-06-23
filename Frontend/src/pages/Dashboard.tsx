@@ -3,15 +3,16 @@ import { TopNavBar } from '../components/TopNavBar';
 import { RightsCard } from '../components/dashboard/RightsCard';
 import { AIChatModal } from '../components/AIChatModal';
 import { type RightItem, type RightStatus } from '../data/mockRights';
-import { getUserEvaluation, getUserRights, updateRightStatus } from '../services/api';
+import { getUserEvaluation, getUserRights, updateRightStatus, updateStepStatus } from '../services/api';
 
 interface DashboardProps {
-  onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
+  onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin' | 'qna') => void;
   isLoggedIn?: boolean;
   userId?: string | null;
+  onLogout?: () => void;
 }
 
-export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, userId }) => {
+export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, userId, onLogout }) => {
   const [rights, setRights] = useState<RightItem[]>([]);
   const [activeTab, setActiveTab] = useState<RightStatus | 'all'>('all');
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -37,10 +38,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
             description: r.description,
             matchPercentage: r.confidence,
             status: trackedMap.get(r.id) || 'worth_checking',
-            steps: [
-              { step: 'הגשת בקשה ואיסוף מסמכים', done: false },
-              { step: 'המתנה לתשובת הגורם המטפל', done: false }
-            ]
+            steps: r.steps?.map((s: any) => ({ step: s.step, done: s.is_completed })) || []
           })) || [];
 
           // Add any tracked rights that weren't in the confident evaluation list
@@ -81,13 +79,31 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
     }
   };
 
-  const handleStepToggle = (rightId: string, stepIndex: number) => {
+  const handleStepToggle = async (rightId: string, stepIndex: number) => {
+    const right = rights.find(r => r.id === rightId);
+    if (!right) return;
+    
+    const stepObj = right.steps[stepIndex];
+    if (!stepObj) return;
+
+    const stepText = stepObj.step;
+    const isCompleted = !stepObj.done;
+
     setRights(prev => prev.map(r => {
       if (r.id !== rightId) return r;
       const newSteps = [...r.steps];
-      newSteps[stepIndex] = { ...newSteps[stepIndex], done: !newSteps[stepIndex].done };
+      newSteps[stepIndex] = { ...newSteps[stepIndex], done: isCompleted };
       return { ...r, steps: newSteps };
     }));
+
+    console.log("userId", userId, "stepText", stepText)
+
+    if (userId && stepText) {
+      const res = await updateStepStatus(userId, rightId, stepText, isCompleted);
+      if (!res.success) {
+        console.error('Failed to update step status:', res.error);
+      }
+    }
   };
 
   const tabs: { id: RightStatus | 'all'; label: string }[] = [
@@ -135,6 +151,17 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
               </svg>
             </button>
+            {onLogout && (
+              <button 
+                onClick={onLogout}
+                className="bg-red-50 text-red-600 border border-red-200 font-semibold px-6 py-3 rounded-full hover:bg-red-100 transition-colors flex items-center gap-2 w-full sm:w-auto justify-center"
+              >
+                התנתק
+                <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
 

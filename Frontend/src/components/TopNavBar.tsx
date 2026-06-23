@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface TopNavBarProps {
-  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin' | 'qna') => void;
   isLoggedIn?: boolean;
 }
 
@@ -21,10 +21,17 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ onNavigate }) => {
         </div>
 
         {/* Navigation Links */}
-        <nav className="absolute left-0 top-1/2 -translate-x-1/2 border border-[#8D4B00] rounded-[14px] -translate-y-1/2 flex items-center gap-8 md:gap-12 lg:gap-16">
+        <nav className="absolute left-0 top-1/2 -translate-y-1/2 flex items-center gap-4 md:gap-6 bg-white/40 border border-[#8D4B00]/25 px-4 py-1 rounded-full backdrop-blur-sm">
+          <button 
+            onClick={() => onNavigate?.('qna')}
+            className="text-[#8D4B00] font-semibold text-sm md:text-base font-rubik hover:opacity-85 transition-opacity py-1 px-2"
+          >
+            שאלות ותשובות
+          </button>
+          <span className="text-[#8D4B00]/30 font-light">|</span>
           <button 
             onClick={() => onNavigate?.('contact')}
-            className="text-[#8D4B00] font-medium text-sm md:text-base font-rubik hover:opacity-80 transition-opacity p-2"
+            className="text-[#8D4B00] font-semibold text-sm md:text-base font-rubik hover:opacity-85 transition-opacity py-1 px-2"
           >
             צור קשר
           </button>

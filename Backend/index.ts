@@ -5,7 +5,8 @@ import dotenv from 'dotenv';
 import { pool } from './db';
 import { initDb } from './initDb';
 import { evaluate, evaluateUi, uiFromMatchOut } from './engine';
-import type { EvaluateOut } from './engine';
+import type { EvaluateOut, RightMatchOut } from './engine';
+import { startScheduler } from './scheduler';
 
 dotenv.config();
 
@@ -122,10 +123,18 @@ app.post('/registrations', async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    // Run the rule engine first (it doesn't need the stored row).
     const evaluation = await evaluate(payload);
 
     const row = await insertRegistration(payload, evaluation);
+
+    // Seed tracked rights with confident matches as 'worth_checking'.
+    const confidentMatches = evaluation.rights
+      .filter((r: RightMatchOut) => r.percentage > MIN_CONFIDENCE_PCT)
+      .map((r: RightMatchOut) => r.id);
+
+    if (confidentMatches.length > 0) {
+      await bulkUpsertUserRights(row.id, confidentMatches, 'worth_checking');
+    }
 
     res.status(201).json({
       message: 'Registration stored and evaluated',
@@ -160,10 +169,13 @@ app.post('/registrations/full', async (req: Request, res: Response): Promise<voi
     const evaluation = await evaluate(payload);
     const row = await insertRegistration(payload, evaluation);
 
-    // Seed the confident matches as tracked rights for the new registration.
-    const confident = evaluation.rights.filter((r) => r.percentage > MIN_CONFIDENCE_PCT);
-    if (confident.length > 0) {
-      await bulkUpsertUserRights(row.id, confident.map((r) => r.id), 'in_process');
+    // Seed tracked rights with confident matches as 'worth_checking' (recommended rights).
+    const confidentMatches = evaluation.rights
+      .filter((r: RightMatchOut) => r.percentage > MIN_CONFIDENCE_PCT)
+      .map((r: RightMatchOut) => r.id);
+
+    if (confidentMatches.length > 0) {
+      await bulkUpsertUserRights(row.id, confidentMatches, 'worth_checking');
     }
 
     res.status(201).json({ user_id: row.id });
@@ -266,12 +278,12 @@ app.put('/users/:userId/rights/:rightId', async (req: Request, res: Response): P
 
 // POST /users/:userId/rights — bulk add/update tracked rights. Body:
 // { "right_ids": number[], "status"?: <RIGHT_STATUSES | null> }. Status defaults
-// to 'in_process'. Atomic: an unknown right id fails the whole batch (404).
+// to 'worth_checking'. Atomic: an unknown right id fails the whole batch (404).
 app.post('/users/:userId/rights', async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
     const rightIds = req.body?.right_ids;
-    const status = req.body?.status === undefined ? 'in_process' : req.body.status;
+    const status = req.body?.status === undefined ? 'worth_checking' : req.body.status;
 
     if (!Array.isArray(rightIds) || rightIds.length === 0) {
       res.status(400).json({ error: 'right_ids must be a non-empty array' });
@@ -362,10 +374,18 @@ app.get('/users/:userId/evaluation', async (req: Request, res: Response): Promis
       return;
     }
 
+    const completedStepsRes = await pool.query(
+      'SELECT right_id, step_text FROM user_completed_steps WHERE user_id = $1',
+      [req.params.userId]
+    );
+    const completedSteps = new Set<string>(
+      completedStepsRes.rows.map((row: any) => `${row.right_id}_${row.step_text}`)
+    );
+
     const stored = result.rows[0].results as EvaluateOut | null;
     const rights = (stored?.rights ?? [])
       .filter((r) => r.percentage > MIN_CONFIDENCE_PCT)
-      .map(uiFromMatchOut);
+      .map(r => uiFromMatchOut(r, completedSteps));
     const disclaimer = stored?.meta?.disclaimer ?? '';
 
     res.status(200).json({ rights, disclaimer });
@@ -517,16 +537,20 @@ async function insertRegistration(payload: any, evaluation: unknown) {
 
   const insert = `
     INSERT INTO registrations
-      ("userType", email, password, "amputeeDetails", "familyMemberDetails",
-       "amputationDescription", "prosthesisUsage", "generalQuestions",
-       metadata, results)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      ("userType", email, password, "firstName", "lastName", "mobileNumber", "address",
+       "amputeeDetails", "familyMemberDetails", "amputationDescription",
+       "prosthesisUsage", "generalQuestions", metadata, results)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     RETURNING id, created_at
   `;
   const values = [
     payload.userType ?? null,
     payload.email ?? null,
     password,
+    payload.amputeeDetails?.firstName ?? null,
+    payload.amputeeDetails?.lastName ?? null,
+    payload.amputeeDetails?.mobileNumber ?? null,
+    payload.amputeeDetails?.address ?? null,
     jsonbParam(payload.amputeeDetails),
     jsonbParam(payload.familyMemberDetails),
     jsonbParam(payload.amputationDescription),
@@ -574,10 +598,104 @@ async function seedAdmin(): Promise<void> {
   );
   console.log(`Admin seed: created admin user '${email}'`);
 }
+// POST /users/:userId/rights/:rightId/steps — Toggle a step's completion status.
+// Body: { "step": "Text of the step", "is_completed": boolean }
+app.post('/users/:userId/rights/:rightId/steps', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId, rightId } = req.params;
+    const { step, is_completed } = req.body;
+
+    if (typeof step !== 'string' || typeof is_completed !== 'boolean') {
+      res.status(400).json({ error: 'Body must contain string "step" and boolean "is_completed"' });
+      return;
+    }
+
+    if (is_completed) {
+      await pool.query(
+        `INSERT INTO user_completed_steps (user_id, right_id, step_text)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (user_id, right_id, step_text) DO NOTHING`,
+        [userId, rightId, step]
+      );
+    } else {
+      await pool.query(
+        `DELETE FROM user_completed_steps WHERE user_id = $1 AND right_id = $2 AND step_text = $3`,
+        [userId, rightId, step]
+      );
+    }
+
+    res.status(200).json({ success: true, rightId, step, is_completed });
+  } catch (error: any) {
+    console.error('Error toggling completed step:', error);
+    if (error.code === '23503') {
+      res.status(404).json({ error: 'Unknown user or right' });
+    } else if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id or right id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
+
+// POST /users/:userId/prosthesis-schedule — Schedules an email reminder
+// for prosthesis eligibility (3 years minus 2 months from receipt date).
+app.post('/users/:userId/prosthesis-schedule', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { receiptDate, info } = req.body;
+    const { userId } = req.params;
+
+    if (!receiptDate || !info) {
+      res.status(400).json({ error: 'receiptDate and info are required' });
+      return;
+    }
+
+    // 1. Check if the user exists
+    const result = await pool.query(
+      'SELECT email FROM registrations WHERE id = $1',
+      [userId]
+    );
+
+    if (result.rowCount === 0) {
+      res.status(404).json({ error: 'User not found' });
+      return;
+    }
+
+    // 2. Calculate the date: 3 years minus 2 months from receiptDate
+    const dateObj = new Date(receiptDate);
+    if (isNaN(dateObj.getTime())) {
+      res.status(400).json({ error: 'Invalid receiptDate format' });
+      return;
+    }
+
+    dateObj.setFullYear(dateObj.getFullYear() + 3);
+    dateObj.setMonth(dateObj.getMonth() - 2);
+
+    // 3. Save the schedule to the database
+    await pool.query(
+      `INSERT INTO prosthesis_schedules (user_id, info, next_email_date)
+       VALUES ($1, $2, $3)`,
+      [userId, info, dateObj.toISOString()]
+    );
+
+    res.status(200).json({
+      message: 'Email reminder scheduled successfully in the database',
+      scheduled_date: dateObj.toISOString(),
+      prosthesis_info: info
+    });
+  } catch (error: any) {
+    console.error('Error scheduling prosthesis reminder:', error);
+    if (error.code === '22P02') {
+      res.status(400).json({ error: 'Malformed user id' });
+    } else {
+      res.status(500).json({ error: 'Internal server error', detail: error.message });
+    }
+  }
+});
 
 initDb()
   .then(seedAdmin)
   .then(() => {
+    startScheduler();
     app.listen(port, () => {
       console.log(`Backend server is running on http://localhost:${port}`);
     });

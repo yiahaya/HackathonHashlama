@@ -11,7 +11,7 @@ import { Page7Success } from './formSteps/Page7Success';
 import { registerFull } from '../services/api';
 
 interface FormWizardProps {
-  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin' | 'qna') => void;
   onLoginSuccess?: (userId: string) => void;
 }
 

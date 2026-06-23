@@ -4,7 +4,7 @@ import { HeroSection } from '../components/HeroSection';
 import { Button } from '../components/Button';
 
 interface HomeProps {
-  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin' | 'qna') => void;
   isLoggedIn?: boolean;
 }
 

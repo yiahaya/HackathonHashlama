@@ -182,10 +182,10 @@
         "header": [{ "key": "Content-Type", "value": "application/json" }],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"full@b.com\",\n  \"password\": \"s3cret\",\n  \"amputationDescription\": { \"amputationReason\": \"תאונת עבודה\" },\n  \"overrides\": { \"medical_disability_percentage\": 60, \"general_disability_percentage\": 60, \"mobility_limitation_percentage\": 60 }\n}"
+          "raw": "{\n  \"userType\": \"הקטוע\",\n  \"email\": \"full@b.com\",\n  \"password\": \"s3cret\",\n  \"amputeeDetails\": {\n    \"firstName\": \"ישראל\",\n    \"lastName\": \"ישראלי\",\n    \"mobileNumber\": \"050-1234567\",\n    \"address\": \"תל אביב\"\n  },\n  \"amputationDescription\": { \"amputationReason\": \"תאונת עבודה\" },\n  \"overrides\": { \"medical_disability_percentage\": 60, \"general_disability_percentage\": 60, \"mobility_limitation_percentage\": 60 }\n}"
         },
         "url": { "raw": "{{baseUrl}}/registrations/full", "host": ["{{baseUrl}}"], "path": ["registrations", "full"] },
-        "description": "One-shot onboarding for the frontend: stores the submission (password bcrypt-hashed), evaluates it, and seeds the confident matches (percentage > 55) as tracked rights with status 'in_process'. Responds with ONLY { user_id }. The frontend then fetches the rights via GET /users/:userId/evaluation. Saves user_id into registrationId."
+        "description": "One-shot onboarding for the frontend: stores the submission (password bcrypt-hashed), evaluates it, and seeds the confident matches (percentage > 55) as tracked rights with status 'worth_checking'. Responds with ONLY { user_id }. The frontend then fetches the rights via GET /users/:userId/evaluation. Saves user_id into registrationId."
       },
       "response": []
     },
@@ -264,7 +264,7 @@
           "host": ["{{baseUrl}}"],
           "path": ["users", "{{registrationId}}", "rights"]
         },
-        "description": "Bulk add/update tracked rights for a user (registration). Body: { right_ids: number[], status?: 'realized'|'in_process'|'worth_checking'|null }. status defaults to 'in_process'. Atomic: an unknown right id fails the whole batch (404)."
+        "description": "Bulk add/update tracked rights for a user (registration). Body: { right_ids: number[], status?: 'realized'|'in_process'|'worth_checking'|null }. status defaults to 'worth_checking'. Atomic: an unknown right id fails the whole batch (404)."
       },
       "response": []
     },
@@ -324,6 +324,56 @@
           "path": ["users", "{{registrationId}}", "rights", "{{rightId}}"]
         },
         "description": "Stop tracking a right for a user. 204 on success, 404 if the (user, right) pair was not tracked."
+      },
+      "response": []
+    },
+    {
+      "name": "Schedule Prosthesis Reminder",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"receiptDate\": \"2023-08-01\",\n  \"info\": \"פרוטזה רגל ימין מעל הברך\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/prosthesis-schedule",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "prosthesis-schedule"]
+        },
+        "description": "Schedules an email reminder for a prosthesis. Body: { receiptDate: string, info: string }. The next email date is calculated as receiptDate + 3 years - 2 months, and inserted into the database. A daily cron job will pick this up and send real emails."
+      },
+      "response": []
+    },
+    {
+      "name": "Toggle Step Flag for a Right",
+      "request": {
+        "method": "POST",
+        "header": [{ "key": "Content-Type", "value": "application/json" }],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"step\": \"הגשת תביעה בטופס בל/250\",\n  \"is_completed\": true\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/rights/{{rightId}}/steps",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "rights", "{{rightId}}", "steps"]
+        },
+        "description": "Mark a specific step for a specific right as completed or not completed. Body: { step: string, is_completed: boolean }"
+      },
+      "response": []
+    },
+    {
+      "name": "Get User Evaluation (with step flags)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/users/{{registrationId}}/evaluation",
+          "host": ["{{baseUrl}}"],
+          "path": ["users", "{{registrationId}}", "evaluation"]
+        },
+        "description": "Fetch the user's evaluation. The 'steps' array inside each right will now contain { step: string, is_completed: boolean } reflecting the status saved via the Toggle Step route."
       },
       "response": []
     }

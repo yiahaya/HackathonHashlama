@@ -1,6 +1,5 @@
 import React from 'react';
 import { Button } from '../../components/Button';
-import { TextInput } from '../../components/form/TextInput';
 import { RadioGroup } from '../../components/form/RadioGroup';
 import type { FormData } from '../../types/form';
 

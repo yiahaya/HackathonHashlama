@@ -4,7 +4,7 @@ import { Button } from '../components/Button';
 import { SpeechControls } from '../components/form/SpeechControls';
 
 interface ContactProps {
-  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin') => void;
+  onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard' | 'admin' | 'qna') => void;
   isLoggedIn?: boolean;
 }
 

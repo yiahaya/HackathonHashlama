@@ -34,6 +34,9 @@ export default defineConfig({
             proxyReq.removeHeader('sec-fetch-dest');
             proxyReq.removeHeader('sec-fetch-mode');
             proxyReq.removeHeader('sec-fetch-site');
+            proxyReq.removeHeader('sec-ch-ua');
+            proxyReq.removeHeader('sec-ch-ua-mobile');
+            proxyReq.removeHeader('sec-ch-ua-platform');
 
             // 4. Mimic Postman's User-Agent exactly, since we know their server allows it
             proxyReq.setHeader('User-Agent', 'PostmanRuntime/7.36.1');
