@@ -818,6 +818,17 @@ app.post('/users/:userId/prosthesis-schedule', async (req: Request, res: Respons
   }
 });
 
+// GET /rehabilitation-centers — Returns all rehabilitation centers with their coordinates
+app.get('/rehabilitation-centers', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const result = await pool.query('SELECT * FROM rehabilitation_centers ORDER BY id ASC');
+    res.status(200).json(result.rows);
+  } catch (error: any) {
+    console.error('Error fetching rehabilitation centers:', error);
+    res.status(500).json({ error: 'Internal server error', detail: error.message });
+  }
+});
+
 initDb()
   .then(seedAdmin)
   .then(() => {

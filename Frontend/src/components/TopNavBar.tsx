@@ -16,7 +16,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({ onNavigate }) => {
             className="text-[#8D4B00] font-extrabold text-2xl font-rubik leading-loose cursor-pointer"
             onClick={() => onNavigate?.('home')}
           >
-            עמותת “הצעד הבא”
+            הצעד שלי
           </h1>
         </div>
 
