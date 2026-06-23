@@ -584,37 +584,11 @@ const RequestRow: React.FC<{
 
       {open && (
         <div className="bg-[#FCF9F4] px-6 py-5 border-t border-[#F0EDE9] flex flex-col gap-4">
-          <div>
-            <h4 className="text-sm font-semibold text-[#8D4B00] mb-1">נושא</h4>
-            <p className="text-sm text-[#1C1C19]">{req.title || '—'}</p>
-          </div>
+          {/* Only the description is new here — the title, name, phone, email and
+              date are all already visible in the collapsed row. */}
           <div>
             <h4 className="text-sm font-semibold text-[#8D4B00] mb-1">תיאור הפנייה</h4>
             <p className="text-sm text-[#1C1C19] whitespace-pre-wrap break-words">{req.description}</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {req.name && (
-              <div className="flex flex-col">
-                <span className="text-xs text-[#9A8B7E]">שם מלא</span>
-                <span className="text-sm text-[#1C1C19]">{req.name}</span>
-              </div>
-            )}
-            {req.email && (
-              <div className="flex flex-col">
-                <span className="text-xs text-[#9A8B7E]">דוא"ל</span>
-                <span className="text-sm text-[#1C1C19]" dir="ltr">{req.email}</span>
-              </div>
-            )}
-            {req.phone && (
-              <div className="flex flex-col">
-                <span className="text-xs text-[#9A8B7E]">טלפון</span>
-                <span className="text-sm text-[#1C1C19]" dir="ltr">{req.phone}</span>
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span className="text-xs text-[#9A8B7E]">נפתחה בתאריך</span>
-              <span className="text-sm text-[#1C1C19]">{new Date(req.created_at).toLocaleString('he-IL')}</span>
-            </div>
           </div>
           <div>
             <button
@@ -678,57 +652,35 @@ const ExceptionalRightRow: React.FC<{ item: AdminExceptionalRight }> = ({ item }
           {item.email && <span className="text-xs text-[#554337] truncate" dir="ltr">{item.email}</span>}
         </div>
 
-        {/* הזכות */}
-        <div className="flex flex-col gap-0.5 flex-1 min-w-0 hidden md:flex">
+        {/* הזכות — pulled slightly closer to the member details (tighter than the row's gap-6) */}
+        <div className="flex flex-col gap-0.5 flex-1 min-w-0 hidden md:flex md:-mr-6">
           <span className="text-xs text-[#9A8B7E]">הזכות התקועה</span>
           <span className="text-sm text-[#1C1C19] truncate">{item.name_he}</span>
         </div>
 
         {/* status (leftmost) + chevron */}
         <div className="flex items-center gap-3 shrink-0">
-          <span className="text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap bg-red-100 text-[#B91C1C]">
-            תקועה
-          </span>
+            <span className="text-xs font-semibold px-3 py-1 rounded-full whitespace-nowrap bg-[#FFDCC5] text-[#301400]">
+              צפייה בפרטים
+            </span>
           <ChevronDownIcon className={`text-[#9A8B7E] transition-transform ${open ? 'rotate-180' : ''}`} />
         </div>
       </button>
 
       {open && (
         <div className="bg-[#FCF9F4] px-6 py-5 border-t border-[#F0EDE9] flex flex-col gap-4">
-          <div>
-            <h4 className="text-sm font-semibold text-[#8D4B00] mb-1">הזכות התקועה</h4>
-            <p className="text-sm text-[#1C1C19]">{item.name_he}</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="flex flex-col">
-              <span className="text-xs text-[#9A8B7E]">שם מלא</span>
-              <span className="text-sm text-[#1C1C19]">{item.name || 'ללא שם'}</span>
+          {/* The right name, member details and date are all in the collapsed row;
+              the source link is the only additional information worth showing. */}
+          {item.source_url ? (
+            <div>
+              <h4 className="text-sm font-semibold text-[#8D4B00] mb-1">מקור הזכות</h4>
+              <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-primary hover:underline">
+                קישור לזכות באתר כל-זכות
+              </a>
             </div>
-            {item.email && (
-              <div className="flex flex-col">
-                <span className="text-xs text-[#9A8B7E]">דוא"ל</span>
-                <span className="text-sm text-[#1C1C19]" dir="ltr">{item.email}</span>
-              </div>
-            )}
-            {item.phone && (
-              <div className="flex flex-col">
-                <span className="text-xs text-[#9A8B7E]">טלפון</span>
-                <span className="text-sm text-[#1C1C19]" dir="ltr">{item.phone}</span>
-              </div>
-            )}
-            <div className="flex flex-col">
-              <span className="text-xs text-[#9A8B7E]">בטיפול מאז</span>
-              <span className="text-sm text-[#1C1C19]">{new Date(item.updated_at).toLocaleString('he-IL')}</span>
-            </div>
-            {item.source_url && (
-              <div className="flex flex-col">
-                <span className="text-xs text-[#9A8B7E]">מקור</span>
-                <a href={item.source_url} target="_blank" rel="noopener noreferrer" className="text-sm text-brand-primary hover:underline">
-                  קישור לזכות
-                </a>
-              </div>
-            )}
-          </div>
+          ) : (
+            <p className="text-sm text-[#554337]">אין מידע נוסף להצגה.</p>
+          )}
         </div>
       )}
     </li>
