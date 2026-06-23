@@ -144,13 +144,18 @@ export interface EvaluateOut {
 // --- Trimmed, presentation-ready DTO for the frontend (POST /evaluate/ui) ---
 // Only the fields a UI renders. No engine profile, no diagnostics.
 
+export interface UiStep {
+  step: string;
+  is_completed: boolean;
+}
+
 export interface RightMatchUiOut {
   id: number;                // right DB id (list key + lookups)
   title: string;             // right name (Hebrew)
   description: string[];     // descriptions of the right's benefits
   confidence: number;        // 0..100
   source_url: string | null; // official source / "learn more" link
-  steps: string[];           // ordered descriptions of the required milestones
+  steps: UiStep[];           // ordered descriptions of the required milestones + completion status
   missing_info: string[];    // required criteria still needed to confirm eligibility
 }
 

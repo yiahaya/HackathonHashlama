@@ -171,6 +171,14 @@ export async function initDb() {
     );
     CREATE INDEX IF NOT EXISTS user_rights_user_id_idx ON user_rights(user_id);
 
+    CREATE TABLE IF NOT EXISTS user_completed_steps (
+        user_id UUID NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
+        right_id INTEGER NOT NULL REFERENCES rights(id) ON DELETE CASCADE,
+        step_text TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (user_id, right_id, step_text)
+    );
+
     CREATE TABLE IF NOT EXISTS prosthesis_schedules (
         id              SERIAL PRIMARY KEY,
         user_id         UUID NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,

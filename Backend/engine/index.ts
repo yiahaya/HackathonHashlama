@@ -72,7 +72,7 @@ export async function evaluate(payload: Record<string, any>): Promise<EvaluateOu
 export async function evaluateUi(payload: Record<string, any>): Promise<EvaluateUiOut> {
   const { ranked } = await rank(payload);
   return {
-    rights: ranked.map(uiMatchOut),
+    rights: ranked.map(r => uiMatchOut(r)),
     disclaimer: DISCLAIMER,
   };
 }
