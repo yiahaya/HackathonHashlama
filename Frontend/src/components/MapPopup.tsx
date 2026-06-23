@@ -11,7 +11,10 @@ import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 let DefaultIcon = L.icon({
   iconUrl: icon,
   shadowUrl: iconShadow,
-  iconAnchor: [12, 41]
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  tooltipAnchor: [0, -35]
 });
 
 L.Marker.prototype.options.icon = DefaultIcon;
@@ -59,7 +62,7 @@ const MapPopup: React.FC<MapPopupProps> = ({ onClose }) => {
         </div>
 
         {/* Map Container */}
-        <div className="flex-1 w-full relative">
+        <div className="flex-1 w-full relative" dir="ltr">
           {loading ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#1E3A8A] border-t-transparent"></div>
@@ -79,7 +82,7 @@ const MapPopup: React.FC<MapPopupProps> = ({ onClose }) => {
                   key={center.id} 
                   position={[Number(center.lat), Number(center.lng)]}
                 >
-                  <Tooltip direction="top" offset={[0, -20]} opacity={1}>
+                  <Tooltip direction="top" opacity={1}>
                     <div className="text-right" dir="rtl">
                       <strong className="block text-sm text-[#1E3A8A]">{center.name}</strong>
                       <span className="text-xs text-gray-600">{center.address}</span>

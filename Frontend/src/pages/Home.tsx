@@ -39,8 +39,8 @@ export const Home: React.FC<HomeProps> = ({ onNavigate, isLoggedIn }) => {
               כניסה לאיזור האישי
             </Button>
             <Button
-              variant="secondary"
-              className="!px-8 shadow-lg hover:-translate-y-1 transition-transform bg-[#1E3A8A] text-white border-none hover:bg-[#1E3A8A]/90"
+              variant="primary"
+              className="!px-8 shadow-lg hover:-translate-y-1 transition-transform"
               onClick={() => setIsMapOpen(true)}
             >
               לחץ לצפייה במפה
