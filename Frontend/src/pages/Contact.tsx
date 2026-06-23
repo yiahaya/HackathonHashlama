@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { TopNavBar } from '../components/TopNavBar';
 import { Button } from '../components/Button';
 import { SpeechControls } from '../components/form/SpeechControls';
+import { useSnackbar } from '../contexts/SnackbarContext';
 
 interface ContactProps {
   onNavigate?: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
@@ -13,14 +14,12 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
   const [email, setEmail] = useState('');
   const [description, setDescription] = useState('');
   const [showModal, setShowModal] = useState(false);
-  const [isDictatingPhone, setIsDictatingPhone] = useState(false);
-  const [isDictatingEmail, setIsDictatingEmail] = useState(false);
-  const [isDictatingDesc, setIsDictatingDesc] = useState(false);
+  const { showSnackbar } = useSnackbar();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!phone || !email || !description) {
-      alert('אנא מלא את כל השדות');
+      showSnackbar('אנא מלא את כל השדות', 'error');
       return;
     }
     
@@ -78,9 +77,6 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
                     />
                     <SpeechControls 
                       textToSpeak={`מספר טלפון. ${phone}`}
-                      onDictate={(t) => setPhone(phone ? phone + ' ' + t : t)}
-                      isDictating={isDictatingPhone}
-                      setIsDictating={setIsDictatingPhone}
                     />
                   </div>
                 </div>
@@ -98,9 +94,6 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
                     />
                     <SpeechControls 
                       textToSpeak={`מייל. ${email}`}
-                      onDictate={(t) => setEmail(email ? email + ' ' + t : t)}
-                      isDictating={isDictatingEmail}
-                      setIsDictating={setIsDictatingEmail}
                     />
                   </div>
                 </div>
@@ -118,9 +111,6 @@ export const Contact: React.FC<ContactProps> = ({ onNavigate, isLoggedIn }) => {
                   />
                   <SpeechControls 
                     textToSpeak={`תיאור הפנייה. ${description}`}
-                    onDictate={(t) => setDescription(description ? description + ' ' + t : t)}
-                    isDictating={isDictatingDesc}
-                    setIsDictating={setIsDictatingDesc}
                   />
                 </div>
               </div>

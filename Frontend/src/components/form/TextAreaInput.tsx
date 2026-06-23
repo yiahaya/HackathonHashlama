@@ -7,15 +7,6 @@ interface TextAreaInputProps extends Omit<React.TextareaHTMLAttributes<HTMLTextA
 }
 
 export const TextAreaInput: React.FC<TextAreaInputProps> = ({ label, onChange, value, ...props }) => {
-  const [isDictating, setIsDictating] = useState(false);
-
-  const handleDictate = (text: string) => {
-    if (onChange) {
-      const newValue = value ? `${value} ${text}` : text;
-      onChange({ target: { value: newValue } } as any);
-    }
-  };
-
   const textToSpeak = `${label}. ${value || ''}`;
 
   return (
@@ -33,9 +24,6 @@ export const TextAreaInput: React.FC<TextAreaInputProps> = ({ label, onChange, v
         />
         <SpeechControls 
           textToSpeak={textToSpeak} 
-          onDictate={onChange ? handleDictate : undefined}
-          isDictating={isDictating}
-          setIsDictating={setIsDictating}
         />
       </div>
     </div>

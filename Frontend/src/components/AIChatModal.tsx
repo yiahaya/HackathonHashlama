@@ -23,7 +23,6 @@ export const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose }) => 
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState('');
-  const [isDictating, setIsDictating] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -210,9 +209,6 @@ export const AIChatModal: React.FC<AIChatModalProps> = ({ isOpen, onClose }) => 
             />
             <SpeechControls 
               textToSpeak="תיבת צ'אט"
-              onDictate={(t) => setInputText(inputText ? inputText + ' ' + t : t)}
-              isDictating={isDictating}
-              setIsDictating={setIsDictating}
             />
           </div>
           

@@ -3,7 +3,8 @@ import { TopNavBar } from '../components/TopNavBar';
 import { RightsCard } from '../components/dashboard/RightsCard';
 import { AIChatModal } from '../components/AIChatModal';
 import { type RightItem, type RightStatus } from '../data/mockRights';
-import { getUserEvaluation, getUserRights, updateRightStatus, updateStepStatus } from '../services/api';
+import { getUserEvaluation, getUserRights, updateRightStatus, updateStepStatus, scheduleProsthesisReminder } from '../services/api';
+import { useSnackbar } from '../contexts/SnackbarContext';
 
 interface DashboardProps {
   onNavigate: (route: 'home' | 'login' | 'form' | 'contact' | 'dashboard') => void;
@@ -16,6 +17,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
   const [rights, setRights] = useState<RightItem[]>([]);
   const [activeTab, setActiveTab] = useState<RightStatus | 'all'>('all');
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const { showSnackbar } = useSnackbar();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,6 +104,18 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
       const res = await updateStepStatus(userId, rightId, stepText, isCompleted);
       if (!res.success) {
         console.error('Failed to update step status:', res.error);
+      }
+    }
+  };
+
+  const handleScheduleReminder = async (_rightId: string, receiptDate: string, info: string) => {
+    if (userId) {
+      const res = await scheduleProsthesisReminder(userId, receiptDate, info);
+      if (!res.success) {
+        console.error('Failed to schedule reminder:', res.error);
+        showSnackbar('שגיאה בתזמון התזכורת', 'error');
+      } else {
+        showSnackbar('התזכורת נשמרה בהצלחה!', 'success');
       }
     }
   };
@@ -199,6 +213,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate, isLoggedIn, us
                   right={right} 
                   onStatusChange={handleStatusChange} 
                   onStepToggle={handleStepToggle}
+                  onScheduleReminder={handleScheduleReminder}
                 />
               ))
             ) : (

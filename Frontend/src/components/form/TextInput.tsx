@@ -7,15 +7,6 @@ interface TextInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement
 }
 
 export const TextInput: React.FC<TextInputProps> = ({ label, onChange, value, ...props }) => {
-  const [isDictating, setIsDictating] = useState(false);
-
-  const handleDictate = (text: string) => {
-    if (onChange) {
-      const newValue = value ? `${value} ${text}` : text;
-      onChange({ target: { value: newValue } } as any);
-    }
-  };
-
   const textToSpeak = `${label}. ${value || ''}`;
 
   return (
@@ -33,9 +24,6 @@ export const TextInput: React.FC<TextInputProps> = ({ label, onChange, value, ..
         />
         <SpeechControls 
           textToSpeak={textToSpeak} 
-          onDictate={onChange ? handleDictate : undefined}
-          isDictating={isDictating}
-          setIsDictating={setIsDictating}
         />
       </div>
     </div>
